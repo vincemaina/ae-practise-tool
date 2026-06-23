@@ -1,0 +1,31 @@
+import type { Question } from '../types';
+
+export const timeBetweenEvents: Question = {
+  id: 'q-time-between-events',
+  slug: 'time-between-events',
+  title: 'Gap since previous event (user 1)',
+  prompt:
+    'For user 1 only, return each event with the number of minutes since their previous ' +
+    'event (NULL for the first). Columns: event_id, event_name, minutes_since_prev. Order ' +
+    'by event_at, then event_id.',
+  difficulty: 'hard',
+  packs: ['Window Functions'],
+  dialects: ['generic'],
+  datasetId: 'events',
+  canonical: {
+    generic: `
+      SELECT event_id,
+             event_name,
+             date_diff('minute', LAG(event_at) OVER (ORDER BY event_at, event_id), event_at)
+               AS minutes_since_prev
+      FROM events
+      WHERE user_id = 1
+      ORDER BY event_at, event_id
+    `,
+  },
+  grading: { orderMatters: true },
+  hints: [
+    'LAG(event_at) OVER (ORDER BY event_at, event_id) gives the previous timestamp.',
+    "date_diff('minute', prev, current) gives the gap; the first row’s LAG is NULL.",
+  ],
+};

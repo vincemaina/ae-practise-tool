@@ -1,0 +1,129 @@
+import type { Cell, ResultSet } from './types';
+
+/**
+ * Output-equivalence grading (see decisions/0004-grading-algorithm.md).
+ * Pure and deterministic — the most heavily tested module in the app.
+ */
+export interface GradeOptions {
+  /** Compare rows positionally instead of as an order-insensitive multiset. */
+  orderMatters?: boolean;
+  /** Require column names to match (case-insensitive). */
+  requireColumnNames?: boolean;
+  /** Absolute numeric tolerance; 0 uses a tiny relative epsilon to absorb float noise. */
+  numericTolerance?: number;
+  /** Case-sensitive string comparison. */
+  caseSensitiveText?: boolean;
+}
+
+export interface GradeResult {
+  correct: boolean;
+  /** Human-friendly explanations of any mismatch (never reveals the canonical answer). */
+  reasons: string[];
+}
+
+type Family = 'null' | 'number' | 'boolean' | 'string' | 'date';
+interface Norm {
+  f: Family;
+  v: number | string | boolean | null;
+}
+
+function normalize(cell: Cell, caseSensitiveText: boolean): Norm {
+  if (cell === null || cell === undefined) return { f: 'null', v: null };
+  if (typeof cell === 'bigint') return { f: 'number', v: Number(cell) };
+  if (typeof cell === 'number') return { f: 'number', v: cell };
+  if (typeof cell === 'boolean') return { f: 'boolean', v: cell };
+  if (cell instanceof Date) return { f: 'date', v: cell.getTime() };
+  const s = String(cell);
+  return { f: 'string', v: caseSensitiveText ? s : s.toLowerCase() };
+}
+
+function cellsEqual(a: Norm, b: Norm, tolerance: number): boolean {
+  if (a.f !== b.f) return false; // cross-family mismatch (e.g. '1' vs 1) is not equal
+  if (a.f === 'number') {
+    const x = a.v as number;
+    const y = b.v as number;
+    if (Number.isNaN(x) || Number.isNaN(y)) return Number.isNaN(x) && Number.isNaN(y);
+    const eps = tolerance > 0 ? tolerance : 1e-9 * Math.max(1, Math.abs(x), Math.abs(y));
+    return Math.abs(x - y) <= eps;
+  }
+  return a.v === b.v;
+}
+
+function rowsEqual(a: Norm[], b: Norm[], tolerance: number): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (!cellsEqual(a[i]!, b[i]!, tolerance)) return false;
+  }
+  return true;
+}
+
+export function grade(
+  expected: ResultSet,
+  actual: ResultSet,
+  options: GradeOptions = {},
+): GradeResult {
+  const orderMatters = options.orderMatters ?? false;
+  const requireColumnNames = options.requireColumnNames ?? false;
+  const tolerance = options.numericTolerance ?? 0;
+  const caseSensitiveText = options.caseSensitiveText ?? true;
+
+  // 1. Column count (positional comparison).
+  if (expected.columns.length !== actual.columns.length) {
+    return {
+      correct: false,
+      reasons: [
+        `Expected ${expected.columns.length} column(s) but your query returned ${actual.columns.length}.`,
+      ],
+    };
+  }
+
+  // 2. Column names (opt-in).
+  if (requireColumnNames) {
+    const nameReasons: string[] = [];
+    for (let i = 0; i < expected.columns.length; i++) {
+      const e = expected.columns[i]!.name.toLowerCase();
+      const a = actual.columns[i]!.name.toLowerCase();
+      if (e !== a) {
+        nameReasons.push(
+          `Column ${i + 1} should be named "${expected.columns[i]!.name}" but was "${actual.columns[i]!.name}".`,
+        );
+      }
+    }
+    if (nameReasons.length) return { correct: false, reasons: nameReasons };
+  }
+
+  // 3. Normalize cells.
+  const exp = expected.rows.map((r) => r.map((c) => normalize(c, caseSensitiveText)));
+  const act = actual.rows.map((r) => r.map((c) => normalize(c, caseSensitiveText)));
+
+  const reasons: string[] = [];
+  if (exp.length !== act.length) {
+    reasons.push(`Expected ${exp.length} row(s) but your query returned ${act.length}.`);
+  }
+
+  // 4a. Order-sensitive: positional row comparison.
+  if (orderMatters) {
+    const n = Math.min(exp.length, act.length);
+    for (let i = 0; i < n; i++) {
+      if (!rowsEqual(exp[i]!, act[i]!, tolerance)) {
+        reasons.push(`Row ${i + 1} does not match (this question requires a specific row order).`);
+        break;
+      }
+    }
+    return { correct: reasons.length === 0, reasons };
+  }
+
+  // 4b. Order-insensitive: multiset match (duplicates are significant).
+  const remaining = act.slice();
+  let missing = 0;
+  for (const er of exp) {
+    const idx = remaining.findIndex((ar) => rowsEqual(er, ar, tolerance));
+    if (idx === -1) missing++;
+    else remaining.splice(idx, 1);
+  }
+  if (missing > 0) reasons.push(`${missing} expected row(s) were missing from your result.`);
+  if (remaining.length > 0) {
+    reasons.push(`${remaining.length} unexpected row(s) were present in your result.`);
+  }
+  return { correct: reasons.length === 0, reasons };
+}

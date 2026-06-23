@@ -1,0 +1,34 @@
+import type { Question } from '../types';
+
+export const funnelSignupToPurchase: Question = {
+  id: 'q-funnel-signup-to-purchase',
+  slug: 'funnel-signup-to-purchase',
+  title: 'Signup → purchase funnel',
+  prompt:
+    "How many users both signed up and later made a purchase — i.e. they have a 'purchase' " +
+    "event with a timestamp strictly after their 'signup' event? Single column converted_users.",
+  difficulty: 'hard',
+  packs: ['Funnels & Retention'],
+  dialects: ['generic'],
+  datasetId: 'events',
+  canonical: {
+    generic: `
+      SELECT COUNT(*) AS converted_users
+      FROM (
+        SELECT s.user_id
+        FROM events s
+        JOIN events p
+          ON p.user_id = s.user_id
+         AND p.event_name = 'purchase'
+         AND p.event_at > s.event_at
+        WHERE s.event_name = 'signup'
+        GROUP BY s.user_id
+      )
+    `,
+  },
+  grading: {},
+  hints: [
+    'Self-join events: signup rows to later purchase rows of the same user.',
+    'Count distinct users that have such a pair.',
+  ],
+};

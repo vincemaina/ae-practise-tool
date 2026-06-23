@@ -1,0 +1,30 @@
+import type { Question } from '../types';
+
+export const avgItemsPerOrder: Question = {
+  id: 'q-avg-items-per-order',
+  slug: 'avg-items-per-order',
+  title: 'Average line items per order',
+  prompt:
+    'Among completed orders that have line items, what is the average number of line-item ' +
+    'rows per order? Count the line-item rows for each order, then average across orders. ' +
+    'Return a single column avg_lines rounded to 2 decimals.',
+  difficulty: 'medium',
+  packs: ['CTEs & Subqueries'],
+  dialects: ['generic'],
+  datasetId: 'ecommerce',
+  canonical: {
+    generic: `
+      WITH per_order AS (
+        SELECT o.order_id, COUNT(*) AS lines
+        FROM orders o
+        JOIN order_items oi ON oi.order_id = o.order_id
+        WHERE o.status = 'completed'
+        GROUP BY o.order_id
+      )
+      SELECT ROUND(AVG(lines), 2) AS avg_lines
+      FROM per_order
+    `,
+  },
+  grading: {},
+  hints: ['First count line items per order in a CTE.', 'Then take AVG of those counts.'],
+};
