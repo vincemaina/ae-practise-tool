@@ -6,8 +6,9 @@ export const customerSpendRank: Question = {
   title: 'Rank customers by spend',
   prompt:
     'Using completed orders (orders.amount), rank customers by total spend with a window ' +
-    'function (1 = highest spender). Return name, total, and spend_rank, ordered by ' +
-    'spend_rank. Only include customers with at least one completed order.',
+    'function (1 = highest spender). Customers with equal spend share the same rank. ' +
+    'Return name, total, and spend_rank, ordered by spend_rank then name. Only include ' +
+    'customers with at least one completed order.',
   difficulty: 'hard',
   packs: ['Window Functions'],
   dialects: ['generic'],

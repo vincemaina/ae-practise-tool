@@ -3,7 +3,9 @@ import type { Dataset } from '../types';
 /**
  * Marketing sessions for attribution / conversion-rate questions.
  * A user may have several sessions across channels; `converted` marks the
- * session in which they converted.
+ * session in which they converted. Conversions are spread across channels
+ * (paid + email convert, organic doesn't) so per-channel rates are non-trivial
+ * and converters have varied first-touch channels.
  */
 export const marketing: Dataset = {
   id: 'marketing',
@@ -27,9 +29,10 @@ export const marketing: Dataset = {
       (2, 1, 'email',   TIMESTAMP '2026-03-02 12:00:00', false),
       (3, 1, 'paid',    TIMESTAMP '2026-03-03 11:00:00', true),
       (4, 2, 'organic', TIMESTAMP '2026-03-02 09:00:00', false),
-      (5, 2, 'email',   TIMESTAMP '2026-03-05 09:00:00', false),
+      (5, 2, 'email',   TIMESTAMP '2026-03-05 09:00:00', true),
       (6, 3, 'paid',    TIMESTAMP '2026-03-04 14:00:00', true),
       (7, 4, 'organic', TIMESTAMP '2026-03-06 08:00:00', false),
-      (8, 3, 'organic', TIMESTAMP '2026-03-01 07:00:00', false);
+      (8, 3, 'organic', TIMESTAMP '2026-03-01 07:00:00', false),
+      (9, 5, 'email',   TIMESTAMP '2026-03-07 10:00:00', true);
   `,
 };

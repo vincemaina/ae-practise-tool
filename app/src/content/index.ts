@@ -1,4 +1,6 @@
 import type { Dataset, Difficulty, Question } from './types';
+import type { QuestionMetrics } from './metrics';
+import { questionMetadata } from './question-metadata.generated';
 import { ecommerce } from './datasets/ecommerce';
 import { events } from './datasets/events';
 import { subscriptions } from './datasets/subscriptions';
@@ -85,4 +87,9 @@ export function getDataset(id: string): Dataset {
 
 export function getQuestion(id: string): Question | undefined {
   return questions.find((q) => q.id === id);
+}
+
+/** Structural metrics derived from the canonical solution (see metrics.ts). */
+export function getMetrics(id: string): QuestionMetrics | undefined {
+  return questionMetadata[id];
 }

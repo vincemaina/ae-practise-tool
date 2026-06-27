@@ -22,7 +22,7 @@ test.beforeAll(() => {
   fs.mkdirSync(DIR, { recursive: true });
 });
 
-/** Select the revenue question and wait until the engine is ready (Run enabled). */
+/** Open the revenue question from the list and wait until the engine is ready. */
 async function openQuestionReady(page: Page) {
   await page.getByTestId('q-customer-completed-revenue').click();
   await page.locator('.cm-content').click();
@@ -30,10 +30,16 @@ async function openQuestionReady(page: Page) {
   await expect(page.getByTestId('run')).toBeEnabled({ timeout: 45_000 });
 }
 
-test('overview — light', async ({ page }) => {
+test('problem list', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByTestId('q-orders-by-status')).toBeVisible();
+  await page.screenshot({ path: `${DIR}/00-problem-list.png`, fullPage: true });
+});
+
+test('solve — light', async ({ page }) => {
   await page.goto('/');
   await openQuestionReady(page);
-  await page.screenshot({ path: `${DIR}/01-overview-light.png`, fullPage: true });
+  await page.screenshot({ path: `${DIR}/01-solve-light.png`, fullPage: true });
 });
 
 test('overview — dark', async ({ page }) => {

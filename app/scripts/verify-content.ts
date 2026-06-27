@@ -12,6 +12,8 @@ import * as duckdb from '@duckdb/duckdb-wasm/dist/duckdb-node-blocking.cjs';
 import { tableToResultSet } from '../src/engine/result-mapping';
 import { grade } from '../src/grading/grade';
 import { questions, getDataset } from '../src/content';
+import { extractMetrics } from '../src/content/metrics';
+import { questionMetadata } from '../src/content/question-metadata.generated';
 
 const require = createRequire(import.meta.url);
 
@@ -43,6 +45,10 @@ const exec = (sql: string) =>
     .filter(Boolean)
     .forEach((s) => conn.query(s));
 const runQuery = (sql: string) => tableToResultSet(conn.query(sql));
+const astOf = (sql: string) =>
+  (conn.query(`SELECT json_serialize_sql('${sql.replace(/'/g, "''")}') AS ast`).toArray()[0] as {
+    ast: string;
+  }).ast;
 
 for (const q of questions) {
   console.log(`\n${q.id} — ${q.title}`);
@@ -71,6 +77,14 @@ for (const q of questions) {
     const numeric = expected.rows.every((r) => r.every((c) => typeof c !== 'string' || isNaN(Number(c))));
     check('numeric columns are numbers (decimals scaled)', numeric);
   }
+
+  // Derived metadata must match the committed generated file.
+  const recomputed = JSON.stringify(extractMetrics(astOf(canonical)));
+  check(
+    'metadata is up to date (else run `pnpm meta:generate`)',
+    recomputed === JSON.stringify(questionMetadata[q.id]),
+    'stale',
+  );
 }
 
 // Question-specific expectations for the seed question.
@@ -79,8 +93,9 @@ exec(getDataset('ecommerce').setupSql);
 const q1 = questions.find((q) => q.id === 'q-customer-completed-revenue')!;
 const expected = runQuery((q1.canonical.generic ?? '').trim());
 check(
-  'expected = [Ben 99.99, Ava 80, Chen 10] in order',
-  JSON.stringify(expected.rows) === JSON.stringify([['Ben', 99.99], ['Ava', 80], ['Chen', 10]]),
+  'expected = [Ben 99.99, Ava 80, Eve 80, Chen 10] in order',
+  JSON.stringify(expected.rows) ===
+    JSON.stringify([['Ben', 99.99], ['Ava', 80], ['Eve', 80], ['Chen', 10]]),
   JSON.stringify(expected.rows),
 );
 check('wrong shape is Incorrect', !grade(expected, runQuery('SELECT name FROM customers'), q1.grading).correct);
@@ -99,7 +114,7 @@ check(
   grade(
     expected,
     runQuery(
-      "SELECT c.name, SUM(o.amount)::DOUBLE AS total FROM customers c JOIN orders o ON o.customer_id=c.customer_id WHERE o.status='completed' GROUP BY c.name ORDER BY total DESC",
+      "SELECT c.name, SUM(o.amount)::DOUBLE AS total FROM customers c JOIN orders o ON o.customer_id=c.customer_id WHERE o.status='completed' GROUP BY c.name ORDER BY total DESC, c.name",
     ),
     q1.grading,
   ).correct,

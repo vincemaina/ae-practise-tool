@@ -1,14 +1,5 @@
-import type { Cell, ResultSet } from '../grading/types';
-
-function isNumeric(value: Cell): boolean {
-  return typeof value === 'number' || typeof value === 'bigint';
-}
-
-function format(value: Cell): string {
-  if (typeof value === 'bigint') return value.toString();
-  if (value instanceof Date) return value.toISOString();
-  return String(value);
-}
+import type { ResultSet } from '../grading/types';
+import { formatCell, isNumeric } from './formatCell';
 
 export function ResultsTable({ data, testId }: { data: ResultSet; testId?: string }) {
   return (
@@ -28,7 +19,7 @@ export function ResultsTable({ data, testId }: { data: ResultSet; testId?: strin
                 {cell === null || cell === undefined ? (
                   <span className="null">NULL</span>
                 ) : (
-                  format(cell)
+                  formatCell(cell)
                 )}
               </td>
             ))}

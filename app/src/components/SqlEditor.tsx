@@ -1,26 +1,22 @@
 import { useEffect, useMemo, useRef } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
-import { sql, SQLDialect, type SQLNamespace } from '@codemirror/lang-sql';
+import { sql, type SQLNamespace } from '@codemirror/lang-sql';
 import { EditorView, keymap } from '@codemirror/view';
 import { linter, lintGutter, type Diagnostic } from '@codemirror/lint';
 import { syntaxTree } from '@codemirror/language';
 import { oneDark } from '@codemirror/theme-one-dark';
+import { duckdbDialect } from '../editor/sqlDialect';
+import { statementForCursor } from '../editor/statement';
+import { activeStatementHighlight } from '../editor/activeStatement';
 import type { SqlError } from '../engine/duckdb';
-
-// DuckDB-flavoured dialect for highlighting + keyword completion (incl. QUALIFY).
-const duckdbDialect = SQLDialect.define({
-  keywords:
-    'select from where group by having order asc desc limit offset join inner left right full outer cross natural on using as and or not in is null like ilike similar between case when then else end union all except intersect distinct with recursive over partition qualify window rows range unbounded preceding following current row exists filter within fetch first next only lateral',
-  builtin:
-    'count sum avg min max coalesce nullif round abs ceil floor greatest least row_number rank dense_rank ntile percent_rank cume_dist lag lead first_value last_value nth_value string_agg array_agg list date_trunc date_part datediff extract now current_date current_timestamp epoch length lower upper trim ltrim rtrim substring substr replace concat regexp_matches strftime try_cast cast',
-  types:
-    'int integer bigint smallint tinyint hugeint usmallint uinteger ubigint double real float decimal numeric varchar char text string boolean bool date time timestamp timestamptz interval blob uuid json struct list map',
-});
 
 interface Props {
   value: string;
   onChange: (value: string) => void;
-  onRun?: () => void;
+  /** Run the statement at the cursor (⌘/Ctrl+Enter). */
+  onRun?: (sql: string) => void;
+  /** Fires with the statement at the cursor whenever it changes (for the Run button). */
+  onActiveStatement?: (sql: string) => void;
   /** Tables → columns for schema-aware autocomplete. */
   schema?: SQLNamespace;
   readOnly?: boolean;
@@ -28,6 +24,8 @@ interface Props {
   validate?: (sql: string) => Promise<SqlError | null>;
   placeholder?: string;
   dark?: boolean;
+  /** Fill the parent's height (worksheet mode) instead of a fixed height. */
+  fill?: boolean;
 }
 
 /** Lenient parse-error squiggles from the SQL grammar (catches unbalanced
@@ -38,8 +36,7 @@ function syntaxLinter(view: EditorView): Diagnostic[] {
     .cursor()
     .iterate((node) => {
       if (node.type.isError) {
-        const to =
-          node.to > node.from ? node.to : Math.min(view.state.doc.length, node.from + 1);
+        const to = node.to > node.from ? node.to : Math.min(view.state.doc.length, node.from + 1);
         diagnostics.push({ from: node.from, to, severity: 'error', message: 'Syntax error' });
       }
     });
@@ -50,16 +47,20 @@ export function SqlEditor({
   value,
   onChange,
   onRun,
+  onActiveStatement,
   schema,
   readOnly,
   validate,
   placeholder,
   dark,
+  fill,
 }: Props) {
   const onRunRef = useRef(onRun);
+  const onActiveRef = useRef(onActiveStatement);
   const validateRef = useRef(validate);
   useEffect(() => {
     onRunRef.current = onRun;
+    onActiveRef.current = onActiveStatement;
     validateRef.current = validate;
   });
 
@@ -67,34 +68,39 @@ export function SqlEditor({
     () => [
       sql({ dialect: duckdbDialect, schema, upperCaseKeywords: false }),
       EditorView.lineWrapping,
+      activeStatementHighlight(),
       keymap.of([
         {
           key: 'Mod-Enter',
-          run: () => {
-            onRunRef.current?.();
+          run: (view) => {
+            const s = statementForCursor(view.state.doc.toString(), view.state.selection.main.head);
+            if (s) onRunRef.current?.(s.text);
             return true;
           },
         },
       ]),
+      // Report the statement at the cursor so the Run button runs the same thing.
+      EditorView.updateListener.of((u) => {
+        if (u.selectionSet || u.docChanged) {
+          const s = statementForCursor(u.state.doc.toString(), u.state.selection.main.head);
+          onActiveRef.current?.(s?.text ?? '');
+        }
+      }),
       lintGutter(),
       linter(syntaxLinter),
-      // Engine-backed validation: real DuckDB errors mapped to the offending line.
+      // Engine-backed validation of the statement at the cursor; on error, mark
+      // that statement (line-precise mapping across statements isn't worth it).
       linter(
         async (view) => {
           const fn = validateRef.current;
           if (!fn) return [];
-          const text = view.state.doc.toString();
-          if (!text.trim()) return [];
-          const err = await fn(text);
+          const s = statementForCursor(view.state.doc.toString(), view.state.selection.main.head);
+          if (!s) return [];
+          const err = await fn(s.text);
           if (!err) return [];
-          let from = 0;
-          let to = view.state.doc.length;
-          if (err.line && err.line >= 1 && err.line <= view.state.doc.lines) {
-            const docLine = view.state.doc.line(err.line);
-            from = docLine.from;
-            to = docLine.to;
-          }
-          return [{ from, to, severity: 'error', message: err.message }];
+          return [
+            { from: s.from, to: Math.max(s.from + 1, s.to), severity: 'error', message: err.message },
+          ];
         },
         { delay: 500 },
       ),
@@ -103,7 +109,7 @@ export function SqlEditor({
   );
 
   return (
-    <div className="sql-editor" data-testid="editor">
+    <div className={`sql-editor ${fill ? 'fill' : ''}`} data-testid="editor">
       <CodeMirror
         value={value}
         onChange={onChange}
@@ -111,7 +117,7 @@ export function SqlEditor({
         extensions={extensions}
         placeholder={placeholder}
         theme={dark ? oneDark : 'light'}
-        height="200px"
+        height={fill ? '100%' : '200px'}
       />
     </div>
   );

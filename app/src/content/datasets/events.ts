@@ -1,8 +1,11 @@
 import type { Dataset } from '../types';
 
 /**
- * Product-analytics event stream. Includes a duplicate event (event_id 2 / 9)
- * so dedup-style questions have something realistic to handle.
+ * Product-analytics event stream. Deliberately messy:
+ *  - duplicate events (2/9 are identical; 3/10 are an identical purchase) so
+ *    dedup and COUNT(DISTINCT) actually matter;
+ *  - user 4 purchased WITHOUT ever signing up, so a signup→purchase funnel must
+ *    exclude them (a plain "users who purchased" would over-count).
  */
 export const events: Dataset = {
   id: 'events',
@@ -24,6 +27,9 @@ export const events: Dataset = {
       (6, 3, 'signup',    TIMESTAMP '2026-02-03 11:00:00'),
       (7, 1, 'view_item', TIMESTAMP '2026-02-04 08:00:00'),
       (8, 2, 'purchase',  TIMESTAMP '2026-02-05 12:00:00'),
-      (9, 1, 'view_item', TIMESTAMP '2026-02-01 09:05:00');
+      (9, 1, 'view_item', TIMESTAMP '2026-02-01 09:05:00'),
+      (10, 1, 'purchase', TIMESTAMP '2026-02-01 09:10:00'),
+      (11, 4, 'view_item', TIMESTAMP '2026-02-06 09:00:00'),
+      (12, 4, 'purchase', TIMESTAMP '2026-02-06 09:30:00');
   `,
 };

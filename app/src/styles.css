@@ -149,63 +149,181 @@ code,
   font-size: 0.95rem;
 }
 
+.topbar-left,
 .topbar-right {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.progress {
   display: flex;
   align-items: center;
   gap: 0.6rem;
 }
 
-.progressbar {
-  width: 120px;
-  height: 7px;
-  border-radius: 999px;
-  background: var(--surface-2);
-  overflow: hidden;
+.logo-btn {
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
 }
 
-.progressbar-fill {
-  height: 100%;
-  border-radius: 999px;
-  background: linear-gradient(90deg, var(--accent), var(--accent-hover));
-  transition: width 400ms ease;
+/* Compact icon buttons (nav) */
+.icon-btn {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  color: var(--text-muted);
 }
 
-.theme-toggle {
+.icon-btn:hover:not(:disabled) {
+  color: var(--text);
+}
+
+.solve-nav {
+  display: flex;
+  gap: 0.25rem;
+  padding-right: 0.4rem;
+  margin-right: 0.2rem;
+  border-right: 1px solid var(--border);
+}
+
+/* Circular progress ring */
+.progress-ring {
+  display: grid;
+  place-items: center;
+  cursor: default;
+}
+
+.ring-track {
+  stroke: var(--surface-2);
+}
+
+.ring-fill {
+  stroke: var(--accent);
+  transition: stroke-dashoffset 500ms ease;
+}
+
+/* Profile menu */
+.profile {
+  position: relative;
+}
+
+.profile-btn {
   display: grid;
   place-items: center;
   width: 36px;
   height: 36px;
   padding: 0;
-  font-size: 1rem;
+  border-radius: 999px;
+  color: var(--text);
+}
+
+.profile-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  padding: 0.4rem;
+  z-index: 20;
+  animation: pop var(--transition);
+}
+
+.profile-menu-head {
+  display: flex;
+  flex-direction: column;
+  padding: 0.5rem 0.6rem 0.6rem;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: none;
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.6rem;
+}
+
+.menu-item:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+
+.menu-item:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.menu-sep {
+  height: 1px;
+  background: var(--border);
+  margin: 0.3rem 0;
+}
+
+.profile-menu-foot {
+  padding: 0.3rem 0.6rem 0.2rem;
+  font-size: 0.75rem;
+}
+
+.soon {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  padding: 0.1rem 0.4rem;
   border-radius: 999px;
 }
 
-/* ============================================================
-   Workspace layout: sidebar | main(split: problem | work)
-   ============================================================ */
-.workspace {
-  flex: 1;
-  display: grid;
-  grid-template-columns: 290px minmax(0, 1fr);
-  gap: 1rem;
-  padding: 1rem 1.25rem 2rem;
-  width: 100%;
-  max-width: 1500px;
-  margin: 0 auto;
+/* Small toggle switch */
+.toggle {
+  width: 34px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  position: relative;
+  transition: background var(--transition);
+  flex: none;
 }
 
-.sidebar {
-  position: sticky;
-  top: 72px;
-  align-self: start;
-  max-height: calc(100vh - 88px);
-  overflow-y: auto;
+.toggle.on {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.toggle .knob {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: #fff;
+  transition: transform var(--transition);
+}
+
+.toggle.on .knob {
+  transform: translateX(14px);
+}
+
+/* ============================================================
+   Page container + split solve layout
+   ============================================================ */
+.page {
+  flex: 1;
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 1.25rem 1.25rem 2.5rem;
+}
+
+.page-title {
+  font-size: 1.4rem;
 }
 
 .split {
@@ -215,20 +333,162 @@ code,
   align-items: start;
 }
 
-@media (max-width: 1080px) {
+@media (max-width: 1000px) {
   .split {
     grid-template-columns: 1fr;
   }
 }
 
-@media (max-width: 800px) {
-  .workspace {
-    grid-template-columns: 1fr;
+/* ---- Problem list page ---- */
+.list-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  margin-bottom: 0.9rem;
+}
+
+.list-controls {
+  display: flex;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.search {
+  flex: 1;
+  min-width: 220px;
+  font: inherit;
+  color: var(--text);
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.search:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.list-controls select {
+  flex: 0 0 auto;
+  min-width: 150px;
+}
+
+.problem-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.problem-table thead th {
+  text-align: left;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  font-weight: 650;
+  padding: 0.6rem 0.9rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.problem-table td {
+  padding: 0.7rem 0.9rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.92rem;
+}
+
+.problem-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.problem-row {
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.problem-row:hover {
+  background: var(--surface-2);
+}
+
+.problem-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.problem-title-cell {
+  font-weight: 550;
+}
+
+.col-status {
+  width: 38px;
+}
+.col-num {
+  width: 44px;
+}
+.col-dataset,
+.col-diff {
+  width: 160px;
+}
+
+.problem-table .status {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 1.5px solid var(--border-strong);
+  font-size: 0.7rem;
+  color: transparent;
+}
+
+.problem-table .status.done {
+  background: var(--success);
+  border-color: var(--success);
+  color: #fff;
+}
+
+@media (max-width: 640px) {
+  .col-dataset {
+    display: none;
   }
-  .sidebar {
-    position: static;
-    max-height: none;
-  }
+}
+
+/* ---- Solve page ---- */
+.solve-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.solve-nav {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.link-btn {
+  border: none;
+  background: none;
+  color: var(--accent);
+  font-weight: 600;
+  padding: 0.4rem 0.2rem;
+}
+
+.link-btn:hover {
+  text-decoration: underline;
+}
+
+.brand-btn {
+  border: none;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
 }
 
 /* ============================================================
@@ -372,11 +632,12 @@ select:hover {
   background: var(--danger-soft);
 }
 
-.pills {
+.pills,
+.metric-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem;
-  margin: 0.5rem 0;
+  margin: 0.7rem 0 0;
 }
 
 .pill {
@@ -652,4 +913,286 @@ pre.canonical {
   border-radius: var(--radius-sm);
   overflow-x: auto;
   font-size: 0.85rem;
+}
+
+/* Schema & sample-data preview */
+.schema-table {
+  margin-top: 0.7rem;
+}
+
+.schema-table-name {
+  font-weight: 600;
+  font-size: 0.82rem;
+  margin-bottom: 0.3rem;
+}
+
+.results-table th .col-name {
+  display: block;
+}
+
+.results-table th .col-type {
+  display: block;
+  font-weight: 400;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+/* Read-only highlighted SQL (canonical solution) */
+.sql-block .cm-editor {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  overflow: hidden;
+}
+
+/* ============================================================
+   Worksheet solve layout (full-height editor + output drawer)
+   ============================================================ */
+:root {
+  --drawer-collapsed: 46px;
+}
+
+/* Fixed-viewport app: the page scrolls internally, not the body. */
+.app {
+  height: 100vh;
+  overflow: hidden;
+}
+
+.topbar {
+  flex: none;
+}
+
+.problem-list-page {
+  overflow-y: auto;
+}
+
+.solve-page {
+  max-width: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  overflow: hidden;
+}
+
+/* Left column padded; right column flush to the screen edges (a console tile). */
+.solve-grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0;
+}
+
+.solve-left {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 1rem 1.25rem;
+}
+
+.solve-right {
+  position: relative;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+}
+
+/* Top bar inside the console — never overlaps the editor (it's a flex row). */
+.editor-toolbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+}
+
+.editor-toolbar .run-hint {
+  margin-left: auto;
+}
+
+.engine-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.spinner-sm {
+  width: 14px;
+  height: 14px;
+  border-width: 2px;
+}
+
+/* The editor fills all space between the top/bottom bars (full-height, even empty). */
+.editor-fill {
+  flex: 1;
+  min-height: 0;
+}
+
+.sql-editor.fill,
+.sql-editor.fill > div,
+.sql-editor.fill .cm-editor {
+  height: 100%;
+}
+
+/* Flush, borderless editor inside the console tile. */
+.editor-fill .cm-editor,
+.editor-fill .cm-editor.cm-focused {
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* Output drawer: a bottom bar inside the console that grows upward when opened,
+   shrinking the editor rather than covering it. */
+.output-drawer {
+  flex: none;
+  height: var(--drawer-collapsed);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  overflow: hidden;
+  transition: height 240ms ease;
+}
+
+.output-drawer.open {
+  height: 55%;
+}
+
+.drawer-header {
+  flex: none;
+  height: var(--drawer-collapsed);
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0.9rem;
+  background: var(--surface-2);
+  border: none;
+  border-radius: 0;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.drawer-title {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.status-chip {
+  font-size: 0.72rem;
+  font-weight: 650;
+  padding: 0.12rem 0.5rem;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.status-chip.ok {
+  color: var(--success);
+}
+.status-chip.danger {
+  color: var(--danger);
+}
+
+.drawer-caret {
+  color: var(--text-muted);
+}
+
+.drawer-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 0.8rem 0.9rem 1rem;
+}
+
+.output-section {
+  margin-top: 0.8rem;
+}
+
+.output-section:first-child {
+  margin-top: 0;
+}
+
+/* Active-statement highlight (only shown when the worksheet has >1 query) */
+.cm-active-statement {
+  background: var(--accent-soft);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+/* ============================================================
+   Avatar
+   ============================================================ */
+.avatar {
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  flex: none;
+  overflow: hidden;
+}
+
+.avatar-initials {
+  background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+  color: #fff;
+  font-weight: 650;
+  font-size: 0.78rem;
+  letter-spacing: -0.02em;
+}
+
+.avatar-guest {
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+
+.avatar-img {
+  object-fit: cover;
+}
+
+.profile-menu-head {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.profile-id {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ============================================================
+   Narrow screens: fall back to a stacked, scrolling layout
+   ============================================================ */
+@media (max-width: 900px) {
+  .app {
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
+  .solve-page {
+    display: block;
+    overflow: visible;
+  }
+  .solve-grid {
+    grid-template-columns: 1fr;
+  }
+  .solve-left {
+    overflow: visible;
+  }
+  .solve-right {
+    display: block;
+    border-left: none;
+  }
+  .editor-fill {
+    height: 340px;
+  }
+  .output-drawer,
+  .output-drawer.open {
+    height: auto;
+  }
 }

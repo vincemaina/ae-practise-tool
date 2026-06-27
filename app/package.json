@@ -15,7 +15,8 @@
     "format": "prettier --write .",
     "e2e": "playwright test",
     "screenshot": "playwright test screenshots",
-    "verify:content": "tsx scripts/verify-content.ts"
+    "verify:content": "tsx scripts/verify-content.ts",
+    "meta:generate": "tsx scripts/generate-metadata.ts"
   },
   "dependencies": {
     "@codemirror/lang-sql": "^6.10.0",
@@ -49,6 +50,7 @@
     "typescript": "^5.6.0",
     "typescript-eslint": "^8.0.0",
     "vite": "^8.0.0",
+    "vite-plugin-pwa": "^1.3.0",
     "vitest": "^4.0.0"
   }
 }

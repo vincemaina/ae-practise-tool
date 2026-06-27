@@ -6,8 +6,8 @@ export const customerCompletedRevenue: Question = {
   title: 'Revenue per customer (completed orders)',
   prompt:
     'For each customer who has at least one completed order, return their name and the ' +
-    'total amount of their completed orders, ordered from highest total to lowest. ' +
-    "Only count orders with status 'completed'.",
+    'total amount of their completed orders, ordered from highest total to lowest ' +
+    '(break ties by name). Only count orders with status \'completed\'.',
   difficulty: 'easy',
   packs: ['Joins & Aggregations'],
   dialects: ['generic'],
@@ -19,7 +19,7 @@ export const customerCompletedRevenue: Question = {
       JOIN orders o ON o.customer_id = c.customer_id
       WHERE o.status = 'completed'
       GROUP BY c.name
-      ORDER BY total DESC
+      ORDER BY total DESC, c.name
     `,
   },
   grading: {

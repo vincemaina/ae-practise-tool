@@ -15,22 +15,36 @@ import App from './App';
 
 beforeEach(() => {
   localStorage.clear();
+  window.location.hash = '';
   document.documentElement.removeAttribute('data-theme');
   cleanup();
 });
 
-describe('App shell', () => {
-  it('renders the brand, progress, and a question', () => {
+describe('App', () => {
+  it('opens on the problem list with logo + progress', () => {
     render(<App />);
-    expect(screen.getByText('AE Practice')).toBeTruthy();
-    expect(screen.getByTestId('progress').textContent).toContain('Solved 0/');
-    expect(screen.getByTestId('question-title').textContent).toBeTruthy();
+    expect(screen.getByLabelText('All problems')).toBeTruthy(); // logo button
+    expect(screen.getByTestId('progress').getAttribute('aria-label')).toContain('Solved 0 of');
+    expect(screen.getByTestId('q-orders-by-status')).toBeTruthy();
+    // The solve view is not shown until a problem is opened.
+    expect(screen.queryByTestId('question-title')).toBeNull();
   });
 
-  it('selecting a question from the list updates the problem panel', () => {
+  it('opening a problem navigates to the solve view', () => {
     render(<App />);
     fireEvent.click(screen.getByTestId('q-top-completed-order-per-customer'));
     expect(screen.getByTestId('question-title').textContent).toContain('Largest completed order');
+    // Solve view has the back link and editor.
+    expect(screen.getByTestId('back')).toBeTruthy();
+  });
+
+  it('back returns to the list', () => {
+    render(<App />);
+    fireEvent.click(screen.getByTestId('q-orders-by-status'));
+    expect(screen.getByTestId('question-title')).toBeTruthy();
+    fireEvent.click(screen.getByTestId('back'));
+    expect(screen.queryByTestId('question-title')).toBeNull();
+    expect(screen.getByTestId('q-orders-by-status')).toBeTruthy();
   });
 
   it('filtering by difficulty narrows the list', () => {
@@ -40,10 +54,17 @@ describe('App shell', () => {
     expect(screen.getByTestId('q-top-completed-order-per-customer')).toBeTruthy();
   });
 
-  it('toggles the theme and persists it', () => {
+  it('searching filters by title', () => {
     render(<App />);
-    const toggle = screen.getByLabelText(/switch to .* mode/i);
-    fireEvent.click(toggle);
+    fireEvent.change(screen.getByTestId('search'), { target: { value: 'revenue' } });
+    expect(screen.getByTestId('q-customer-completed-revenue')).toBeTruthy();
+    expect(screen.queryByTestId('q-orders-by-status')).toBeNull();
+  });
+
+  it('toggles the theme via the profile menu', () => {
+    render(<App />);
+    fireEvent.click(screen.getByTestId('profile'));
+    fireEvent.click(screen.getByLabelText(/switch to .* mode/i));
     expect(document.documentElement.dataset.theme).toBeTruthy();
     expect(localStorage.getItem('ae-practice:theme')).toBeTruthy();
   });

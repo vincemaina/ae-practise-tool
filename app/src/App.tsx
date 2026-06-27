@@ -1,91 +1,88 @@
-import { useMemo, useState } from 'react';
-import { questions, allPacks, difficulties } from './content';
-import type { Difficulty } from './content/types';
-import { QuestionList } from './components/QuestionList';
-import { PracticeView } from './components/PracticeView';
+import { useState } from 'react';
+import { questions } from './content';
+import { ProblemList } from './components/ProblemList';
+import { SolveView } from './components/SolveView';
+import { TopBar } from './components/TopBar';
 import { createProgressStore } from './storage/progress';
 import { useTheme } from './theme/useTheme';
+import { useRoute } from './route/useRoute';
 
 const progress = createProgressStore();
+const NAME_KEY = 'ae-practice:name';
+
+function readName(): string | null {
+  try {
+    return localStorage.getItem(NAME_KEY);
+  } catch {
+    return null;
+  }
+}
 
 export default function App() {
   const { theme, toggle } = useTheme();
+  const { path, navigate } = useRoute();
   const [solved, setSolved] = useState<string[]>(() => progress.getSolved());
-  const [packFilter, setPackFilter] = useState<string>('all');
-  const [difficultyFilter, setDifficultyFilter] = useState<Difficulty | 'all'>('all');
-  const [selectedId, setSelectedId] = useState<string>(questions[0]!.id);
+  const [userName, setUserName] = useState<string | null>(readName);
+  const user = userName ? { name: userName } : null;
 
-  const filtered = useMemo(
-    () =>
-      questions.filter(
-        (q) =>
-          (packFilter === 'all' || q.packs.includes(packFilter)) &&
-          (difficultyFilter === 'all' || q.difficulty === difficultyFilter),
-      ),
-    [packFilter, difficultyFilter],
-  );
+  function signIn(name: string) {
+    try {
+      localStorage.setItem(NAME_KEY, name);
+    } catch {
+      /* ignore */
+    }
+    setUserName(name);
+  }
+  function signOut() {
+    try {
+      localStorage.removeItem(NAME_KEY);
+    } catch {
+      /* ignore */
+    }
+    setUserName(null);
+  }
 
-  const selected = questions.find((q) => q.id === selectedId) ?? questions[0]!;
-  const pct = questions.length ? Math.round((solved.length / questions.length) * 100) : 0;
+  const slug = path.startsWith('/q/') ? decodeURIComponent(path.slice(3)) : null;
+  const question = slug ? (questions.find((q) => q.slug === slug) ?? null) : null;
+
+  const open = (s: string) => navigate(`/q/${s}`);
+  const home = () => navigate('/');
 
   function handleSolved(id: string) {
     progress.markSolved(id);
     setSolved(progress.getSolved());
   }
 
+  const idx = question ? questions.findIndex((q) => q.id === question.id) : -1;
+  const at = (i: number) => questions[((i % questions.length) + questions.length) % questions.length]!;
+
   return (
     <div className="app">
-      <header className="topbar">
-        <div className="brand">
-          <span className="brand-mark">⌁</span>
-          AE Practice
-        </div>
-        <div className="topbar-right">
-          <div className="progress">
-            <span className="muted" data-testid="progress">
-              Solved {solved.length}/{questions.length}
-            </span>
-            <div
-              className="progressbar"
-              role="progressbar"
-              aria-valuenow={pct}
-              aria-valuemin={0}
-              aria-valuemax={100}
-            >
-              <div className="progressbar-fill" style={{ width: `${pct}%` }} />
-            </div>
-          </div>
-          <button
-            className="theme-toggle"
-            onClick={toggle}
-            aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-            title="Toggle theme"
-          >
-            {theme === 'dark' ? '☀' : '☾'}
-          </button>
-        </div>
-      </header>
-
-      <div className="workspace">
-        <aside className="sidebar">
-          <QuestionList
-            questions={filtered}
-            selectedId={selectedId}
-            solvedIds={solved}
-            onSelect={setSelectedId}
-            packs={allPacks}
-            packFilter={packFilter}
-            onPackFilter={setPackFilter}
-            difficulties={difficulties}
-            difficultyFilter={difficultyFilter}
-            onDifficultyFilter={setDifficultyFilter}
-          />
-        </aside>
-
-        <main className="main">
-          <PracticeView key={selected.id} question={selected} onSolved={handleSolved} dark={theme === 'dark'} />
-        </main>
-      </div>
+      <TopBar
+        solved={solved.length}
+        total={questions.length}
+        theme={theme}
+        onToggleTheme={toggle}
+        onHome={home}
+        nav={
+          question
+            ? {
+                onBack: home,
+                onPrev: () => open(at(idx - 1).slug),
+                onNext: () => open(at(idx + 1).slug),
+                onShuffle: () => open(at(Math.floor(Math.random() * questions.length)).slug),
+              }
+            : null
+        }
+        user={user}
+        onSignIn={signIn}
+        onSignOut={signOut}
+      />
+      {question ? (
+        <SolveView question={question} onSolved={handleSolved} dark={theme === 'dark'} />
+      ) : (
+        <ProblemList solvedIds={solved} onOpen={open} />
+      )}
     </div>
   );
 }

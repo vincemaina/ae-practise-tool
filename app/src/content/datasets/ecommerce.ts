@@ -1,9 +1,12 @@
 import type { Dataset } from '../types';
 
 /**
- * Small e-commerce dataset. Deliberately includes non-`completed` orders
- * (cancelled/refunded) so questions can test correct filtering — a first taste
- * of the "realistic, slightly messy" data this product is about.
+ * Small e-commerce dataset. Deliberately messy:
+ *  - non-`completed` orders (cancelled/refunded) so filtering matters;
+ *  - Dana has only a cancelled order (no completed) for anti-join questions;
+ *  - Ava and Eve have equal completed-spend (80) so window RANK ties bite
+ *    (RANK ≠ ROW_NUMBER). Eve's orders have no line items, so item-level
+ *    questions (which inner-join order_items) are unaffected.
  */
 export const ecommerce: Dataset = {
   id: 'ecommerce',
@@ -24,7 +27,8 @@ export const ecommerce: Dataset = {
       (1, 'Ava',  'UK'),
       (2, 'Ben',  'US'),
       (3, 'Chen', 'SG'),
-      (4, 'Dana', 'US');
+      (4, 'Dana', 'US'),
+      (5, 'Eve',  'UK');
 
     CREATE OR REPLACE TABLE orders (
       order_id    INTEGER,
@@ -40,7 +44,9 @@ export const ecommerce: Dataset = {
       (104, 2, 20.00, 'cancelled', TIMESTAMP '2026-01-04 09:30:00'),
       (105, 3, 10.00, 'completed', TIMESTAMP '2026-01-06 14:00:00'),
       (106, 1,  5.00, 'refunded',  TIMESTAMP '2026-01-07 14:00:00'),
-      (107, 4, 15.00, 'cancelled', TIMESTAMP '2026-01-08 11:00:00');
+      (107, 4, 15.00, 'cancelled', TIMESTAMP '2026-01-08 11:00:00'),
+      (108, 5, 45.00, 'completed', TIMESTAMP '2026-01-09 09:00:00'),
+      (109, 5, 35.00, 'completed', TIMESTAMP '2026-01-10 16:00:00');
 
     CREATE OR REPLACE TABLE products (
       product_id INTEGER,

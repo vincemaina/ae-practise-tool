@@ -1,14 +1,25 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { SQLNamespace } from '@codemirror/lang-sql';
 import confetti from 'canvas-confetti';
-import { getDataset } from '../content';
+import { getDataset, getMetrics } from '../content';
+import { metricTags } from '../content/metrics';
 import type { Question } from '../content/types';
 import { ensureDataset, runQuery, validateSql } from '../engine/duckdb';
 import { grade, type GradeResult } from '../grading/grade';
 import type { ResultSet } from '../grading/types';
 import { ResultsTable } from './ResultsTable';
 import { SqlEditor } from './SqlEditor';
+import { SqlBlock } from './SqlBlock';
+import { SchemaPreview } from './SchemaPreview';
 import { DifficultyBadge } from './DifficultyBadge';
+
+/** Strip the common leading indentation from a template-literal SQL string. */
+function dedent(text: string): string {
+  const lines = text.replace(/^\n+/, '').replace(/\s+$/, '').split('\n');
+  const indents = lines.filter((l) => l.trim()).map((l) => /^[ \t]*/.exec(l)![0].length);
+  const min = indents.length ? Math.min(...indents) : 0;
+  return lines.map((l) => l.slice(min)).join('\n');
+}
 
 function celebrate() {
   confetti({
@@ -33,7 +44,7 @@ export function PracticeView({
   dark: boolean;
 }) {
   const dataset = getDataset(question.datasetId);
-  const canonicalSql = (question.canonical.generic ?? '').trim();
+  const canonicalSql = dedent(question.canonical.generic ?? '');
   const schema = useMemo<SQLNamespace>(
     () => Object.fromEntries(dataset.tables.map((t) => [t.name, t.columns])),
     [dataset],
@@ -41,6 +52,7 @@ export function PracticeView({
 
   const [ready, setReady] = useState(false);
   const [sql, setSql] = useState('');
+  const [activeSql, setActiveSql] = useState('');
   const [results, setResults] = useState<ResultSet | null>(null);
   const [expected, setExpected] = useState<ResultSet | null>(null);
   const [verdict, setVerdict] = useState<GradeResult | null>(null);
@@ -48,6 +60,7 @@ export function PracticeView({
   const [revealed, setRevealed] = useState(false);
   const [hintCount, setHintCount] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -64,6 +77,9 @@ export function PracticeView({
     };
   }, [dataset.id, dataset.setupSql]);
 
+  // The query that Run/Submit act on: the statement at the cursor, else the whole doc.
+  const queryToRun = (activeSql.trim() ? activeSql : sql).trim();
+
   async function getExpected(): Promise<ResultSet> {
     if (expected) return expected;
     const exp = await runQuery(canonicalSql);
@@ -71,12 +87,15 @@ export function PracticeView({
     return exp;
   }
 
-  async function handleRun() {
+  async function handleRun(explicit?: string) {
+    const q = (explicit ?? queryToRun).trim();
+    if (!q) return;
     setError(null);
     setVerdict(null);
     setBusy(true);
+    setDrawerOpen(true);
     try {
-      setResults(await runQuery(sql));
+      setResults(await runQuery(q));
     } catch (e) {
       setResults(null);
       setError(String(e));
@@ -86,11 +105,13 @@ export function PracticeView({
   }
 
   async function handleSubmit() {
+    if (!queryToRun) return;
     setError(null);
     setBusy(true);
+    setDrawerOpen(true);
     try {
       const exp = await getExpected();
-      const got = await runQuery(sql);
+      const got = await runQuery(queryToRun);
       setResults(got);
       const result = grade(exp, got, question.grading);
       setVerdict(result);
@@ -108,6 +129,7 @@ export function PracticeView({
 
   async function handleReveal() {
     setBusy(true);
+    setDrawerOpen(true);
     try {
       await getExpected();
       setRevealed(true);
@@ -119,39 +141,42 @@ export function PracticeView({
   }
 
   const hints = question.hints ?? [];
-  const canSubmit = ready && !busy && sql.trim().length > 0;
+  const canRun = ready && !busy && queryToRun.length > 0;
+
+  const hasOutput = error || verdict || results || revealed;
+  const status = error
+    ? { label: 'Error', cls: 'danger' }
+    : verdict
+      ? { label: verdict.correct ? 'Correct' : 'Incorrect', cls: verdict.correct ? 'ok' : 'danger' }
+      : results
+        ? { label: `${results.rows.length} row(s)`, cls: 'muted' }
+        : { label: 'Output', cls: 'muted' };
 
   return (
-    <div className="split">
+    <div className="solve-grid">
       {/* Problem panel */}
-      <section className="problem">
+      <section className="solve-left">
         <div className="card">
           <div className="problem-head">
             <h2 data-testid="question-title">{question.title}</h2>
             <DifficultyBadge difficulty={question.difficulty} />
           </div>
-          <div className="pills">
-            {question.packs.map((p) => (
-              <span key={p} className="pill">
-                {p}
-              </span>
-            ))}
-          </div>
           <p className="prompt">{question.prompt}</p>
+          {(() => {
+            const metrics = getMetrics(question.id);
+            return metrics ? (
+              <div className="metric-chips" data-testid="metric-chips">
+                {metricTags(metrics).map((t) => (
+                  <span key={t} className="pill">
+                    {t}
+                  </span>
+                ))}
+              </div>
+            ) : null;
+          })()}
         </div>
 
-        <div className="card schema">
-          <span className="section-label">Schema · {dataset.title}</span>
-          <ul>
-            {dataset.tables.map((t) => (
-              <li key={t.name}>
-                <code>
-                  {t.name}({t.columns.join(', ')})
-                </code>
-              </li>
-            ))}
-          </ul>
-        </div>
+        <SchemaPreview dataset={dataset} ready={ready} />
 
         {hints.length > 0 && (
           <div className="card hints">
@@ -176,108 +201,124 @@ export function PracticeView({
         )}
       </section>
 
-      {/* Work panel */}
-      <section className="work">
-        <div className="card">
+      {/* Worksheet panel */}
+      <section className="solve-right">
+        <div className="editor-toolbar">
+          <button data-testid="run" onClick={() => void handleRun()} disabled={!canRun}>
+            Run
+          </button>
+          <button className="primary" data-testid="submit" onClick={handleSubmit} disabled={!canRun}>
+            Submit
+          </button>
+          <button data-testid="reveal" onClick={handleReveal} disabled={!ready || busy}>
+            Reveal solution
+          </button>
+          {ready ? (
+            <span className="run-hint muted">⌘/Ctrl + Enter runs the query at your cursor</span>
+          ) : (
+            <span className="run-hint muted engine-loading">
+              <span className="spinner spinner-sm" /> Starting SQL engine…
+            </span>
+          )}
+        </div>
+
+        <div className="editor-fill">
           <SqlEditor
+            fill
             value={sql}
             onChange={setSql}
-            onRun={() => {
-              if (canSubmit) void handleRun();
+            onActiveStatement={setActiveSql}
+            onRun={(stmt) => {
+              if (ready && !busy) void handleRun(stmt);
             }}
             schema={schema}
             readOnly={!ready || busy}
             validate={ready ? validateSql : undefined}
-            placeholder={ready ? 'Write your SQL here…' : 'Loading SQL engine…'}
+            placeholder={ready ? 'Write SQL here… run multiple queries; ⌘/Ctrl+Enter runs the one at your cursor.' : 'Loading SQL engine…'}
             dark={dark}
           />
-          <div className="actions">
-            <button data-testid="run" onClick={handleRun} disabled={!canSubmit}>
-              Run
-            </button>
-            <button className="primary" data-testid="submit" onClick={handleSubmit} disabled={!canSubmit}>
-              Submit
-            </button>
-            <button data-testid="reveal" onClick={handleReveal} disabled={!ready || busy}>
-              Reveal solution
-            </button>
-            <span className="run-hint muted">⌘/Ctrl + Enter</span>
-          </div>
         </div>
 
-        {!ready && !error && (
-          <div className="card loading">
-            <div className="spinner" />
-            <div>
-              <strong>Starting the in-browser SQL engine…</strong>
-              <p className="muted">
-                DuckDB runs locally in your browser — no server. First load fetches the engine once.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {error && (
-          <div className="card">
-            <div className="error" data-testid="error">
-              {error}
-            </div>
-          </div>
-        )}
-
-        {verdict && (
-          <div className={`verdict ${verdict.correct ? 'correct' : 'incorrect'}`}>
-            <span className="verdict-icon">{verdict.correct ? '✓' : '✕'}</span>
-            <div>
-              <strong data-testid="verdict">{verdict.correct ? 'Correct' : 'Incorrect'}</strong>
-              {verdict.correct ? (
-                <span className="muted">Nice — that matches the expected output.</span>
-              ) : (
-                verdict.reasons.length > 0 && (
-                  <ul data-testid="reasons">
-                    {verdict.reasons.map((r, i) => (
-                      <li key={i} className="muted">
-                        {r}
-                      </li>
-                    ))}
-                  </ul>
-                )
-              )}
-            </div>
-          </div>
-        )}
-
-        {results && (
-          <div className="card">
-            <div className="card-head">
-              <strong>Your results</strong>
-              <span className="muted">{results.rows.length} row(s)</span>
-            </div>
-            <div className="results-wrap">
-              <ResultsTable data={results} testId="results" />
-            </div>
-          </div>
-        )}
-
-        {revealed && (
-          <div className="card">
-            <div className="card-head">
-              <strong>Expected output</strong>
-              {expected && <span className="muted">{expected.rows.length} row(s)</span>}
-            </div>
-            {expected && (
-              <div className="results-wrap">
-                <ResultsTable data={expected} testId="expected" />
-              </div>
-            )}
-            <span className="section-label" style={{ display: 'block', marginTop: '0.8rem' }}>
-              Canonical solution
+        <div className={`output-drawer ${drawerOpen ? 'open' : ''}`}>
+          <button
+            className="drawer-header"
+            onClick={() => setDrawerOpen((o) => !o)}
+            aria-expanded={drawerOpen}
+            data-testid="drawer-toggle"
+          >
+            <span className="drawer-title">
+              Output
+              {hasOutput && <span className={`status-chip ${status.cls}`}>{status.label}</span>}
             </span>
-            <pre className="canonical">
-              <code data-testid="canonical">{canonicalSql}</code>
-            </pre>
-          </div>
-        )}
+            <span className="drawer-caret" aria-hidden="true">
+              {drawerOpen ? '▾' : '▴'}
+            </span>
+          </button>
+
+          {drawerOpen && (
+            <div className="drawer-body">
+              {error && (
+                <div className="error" data-testid="error">
+                  {error}
+                </div>
+              )}
+
+              {verdict && (
+                <div className={`verdict ${verdict.correct ? 'correct' : 'incorrect'}`}>
+                  <span className="verdict-icon">{verdict.correct ? '✓' : '✕'}</span>
+                  <div>
+                    <strong data-testid="verdict">{verdict.correct ? 'Correct' : 'Incorrect'}</strong>
+                    {verdict.correct ? (
+                      <span className="muted">Nice — that matches the expected output.</span>
+                    ) : (
+                      verdict.reasons.length > 0 && (
+                        <ul data-testid="reasons">
+                          {verdict.reasons.map((r, i) => (
+                            <li key={i} className="muted">
+                              {r}
+                            </li>
+                          ))}
+                        </ul>
+                      )
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {results && (
+                <div className="output-section">
+                  <div className="card-head">
+                    <strong>Your results</strong>
+                    <span className="muted">{results.rows.length} row(s)</span>
+                  </div>
+                  <div className="results-wrap">
+                    <ResultsTable data={results} testId="results" />
+                  </div>
+                </div>
+              )}
+
+              {revealed && (
+                <div className="output-section">
+                  <div className="card-head">
+                    <strong>Expected output</strong>
+                    {expected && <span className="muted">{expected.rows.length} row(s)</span>}
+                  </div>
+                  {expected && (
+                    <div className="results-wrap">
+                      <ResultsTable data={expected} testId="expected" />
+                    </div>
+                  )}
+                  <span className="section-label" style={{ display: 'block', margin: '0.8rem 0 0.3rem' }}>
+                    Canonical solution
+                  </span>
+                  <SqlBlock code={canonicalSql} dark={dark} testId="canonical" />
+                </div>
+              )}
+
+              {!hasOutput && <p className="muted">Run a query to see its output here.</p>}
+            </div>
+          )}
+        </div>
       </section>
     </div>
   );

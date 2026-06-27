@@ -34,24 +34,30 @@ _Phase 1 verified green: typecheck + lint + 13 unit tests + content verification
 ## Phase 2 — Content model & authoring ✅
 _Goal: questions become structured, easy-to-add data, not hardcode._
 - ✅ Typed Question/Dataset content schema (`content/types.ts`), one file per question
-- ✅ Shared, file-seeded datasets incl. deliberately messy data (ecommerce cancelled/refunded; events has a duplicate row)
+- ✅ Shared, file-seeded datasets (4) **audited so each question's concept actually bites** in the data — duplicate purchases (so `DISTINCT` matters), a purchaser who never signed up (so the funnel's signup filter matters), varied per-channel conversion rates, refunds/cancellations, `NULL` cancel dates, etc.
 - ✅ Authoring validation (`pnpm verify:content`) runs every question on the real engine: canonical executes, deterministic, self-grades Correct, returns rows, lists generic dialect
+- ✅ **Derived question metadata** — structural metrics (tables, joins, window functions, CTEs, aggregates, subqueries, groupBy/orderBy/distinct) auto-extracted from each canonical's DuckDB parse tree (`metrics.ts` → generated file, drift-checked by `verify:content`). Shown as chips on the problem; basis for future concept-based selection/adaptive practice.
 - ✅ Question bank: **26 questions** across 8 packs (Core SQL, Joins & Aggregations, CTEs & Subqueries, Window Functions incl. `QUALIFY`, Messy Data, Funnels & Retention, Cohorts, Attribution), easy→hard, over **4 datasets** (ecommerce, events, subscriptions, marketing). All validated on the real engine via `verify:content`.
 
 ## Phase 3 — Practice UX (mostly done)
 _Goal: a usable tool, not just one question._
-- ✅ Question list with pack + difficulty filters and solved checkmarks
+
+> **Direction (2026-06-23):** focus on UX + content now (richer problem/schema presentation, more questions). **Dialect layer deprioritised.** PWA + deploy is the likely next milestone; adaptive-practice + embeddings remain in the idea backlog.
+- ✅ **Separate problem-list page** (browse table: status · title · dataset · difficulty, with search + filters) and **solve screen** (problem | editor/results, with back + prev/next/shuffle), via a tiny hash router. Informed by LeetCode / SQL-Practice references in `notes/design-references/`.
 - ✅ Question view: schema preview, Run, results, Submit, Reveal, progressive hints
-- ✅ **CodeMirror SQL editor**: syntax highlighting, schema-aware autocomplete (tables/columns), `⌘/Ctrl+Enter` to run, and inline error squiggles (lenient parser errors + real DuckDB validation via `EXPLAIN`)
+- ✅ **CodeMirror SQL editor**: syntax highlighting, schema-aware autocomplete, inline error squiggles (parser + real DuckDB `EXPLAIN`). **Worksheet mode**: full-height editor, multiple queries, `⌘/Ctrl+Enter` (or Run) executes the **statement at the cursor** (highlighted when >1 query), results in a **sliding/collapsible output drawer**.
+- ✅ App shell: logo + contextual nav in the bar, circular progress ring (hover tooltip), profile menu (theme toggle + local display-name sign-in → avatar initials).
 - ✅ Minimal progress persistence (localStorage; injectable + unit-tested)
 - ✅ **Premium UX pass** — semantic design tokens, light/dark theme (persisted), app shell (top bar + progress + sidebar + split workspace), difficulty badges, redesigned feedback banner + confetti on solve (reduced-motion aware), engine loading state, polished results table, theme-synced editor. Research in `notes/research/premium-ux.md`. jsdom render test added.
 - ⬜ Dialect filter (deferred — only `generic` exists today)
 - ⬜ Session config (ordered/random; difficulty range; multi-pack)
 
-## Phase 4 — PWA / offline
-_Goal: installable, offline-capable._
-- ⬜ Service worker + asset caching (incl. the WASM binary)
-- ⬜ Offline-ready practice flow
+## Phase 4 — PWA / offline & deploy
+_Goal: installable, offline-capable, hosted._
+- ✅ Service worker + manifest via `vite-plugin-pwa` (autoUpdate). App shell precached; DuckDB `.wasm` runtime-cached (CacheFirst) so it works offline after first real load.
+- ✅ Web manifest (name/theme/icons), installable. SVG icon shipped; **PNG 192/512 icons are a follow-up** for store-grade install prompts.
+- ⬜ Verify offline + install in a real browser (needs the browser-in-container or host run).
+- ⏸ Deploy to a static host — **deferred (2026-06-23)**; running locally via `pnpm build && pnpm preview` for now. Host TBD; a subpath deploy (e.g. GitHub project pages) needs Vite `base` set.
 
 ## Later (explicitly deferred — do not build without agreement)
 - Snowflake / BigQuery dialect realism (validation layer + per-dialect answers)
