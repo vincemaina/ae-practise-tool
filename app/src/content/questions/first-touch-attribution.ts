@@ -21,7 +21,7 @@ export const firstTouchAttribution: Question = {
         SELECT user_id, channel
         FROM sessions
         WHERE user_id IN (SELECT user_id FROM converters)
-        QUALIFY ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY started_at) = 1
+        QUALIFY ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY started_at, session_id) = 1
       )
       SELECT channel, COUNT(*) AS converters
       FROM first_touch

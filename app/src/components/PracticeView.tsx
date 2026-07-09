@@ -3,6 +3,7 @@ import type { SQLNamespace } from '@codemirror/lang-sql';
 import confetti from 'canvas-confetti';
 import { getDataset, getMetrics } from '../content';
 import { metricTags } from '../content/metrics';
+import { logEvent } from '../dev/telemetry';
 import type { Question } from '../content/types';
 import { ensureDataset, runQuery, validateSql } from '../engine/duckdb';
 import { grade, type GradeResult } from '../grading/grade';
@@ -12,6 +13,7 @@ import { SqlEditor } from './SqlEditor';
 import { SqlBlock } from './SqlBlock';
 import { SchemaPreview } from './SchemaPreview';
 import { DifficultyBadge } from './DifficultyBadge';
+import { DiffView } from './DiffView';
 
 /** Strip the common leading indentation from a template-literal SQL string. */
 function dedent(text: string): string {
@@ -34,24 +36,34 @@ function celebrate() {
 
 /** The practice loop for a single question. Mount with `key={question.id}` so
  *  switching questions resets editor/results/verdict state automatically. */
+function formatTime(total: number): string {
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+}
+
 export function PracticeView({
   question,
-  onSolved,
+  onAttempt,
+  onNext,
   dark,
 }: {
   question: Question;
-  onSolved: (id: string) => void;
+  onAttempt: (id: string, correct: boolean) => void;
+  onNext: () => void;
   dark: boolean;
 }) {
   const dataset = getDataset(question.datasetId);
   const canonicalSql = dedent(question.canonical.generic ?? '');
+  const isDebug = question.challengeType === 'debug';
+  const starter = isDebug && question.starterSql ? dedent(question.starterSql) : '';
   const schema = useMemo<SQLNamespace>(
     () => Object.fromEntries(dataset.tables.map((t) => [t.name, t.columns])),
     [dataset],
   );
 
   const [ready, setReady] = useState(false);
-  const [sql, setSql] = useState('');
+  const [sql, setSql] = useState(starter);
+  const [seconds, setSeconds] = useState(0);
+  const [timerRunning, setTimerRunning] = useState(true);
   const [activeSql, setActiveSql] = useState('');
   const [results, setResults] = useState<ResultSet | null>(null);
   const [expected, setExpected] = useState<ResultSet | null>(null);
@@ -77,6 +89,16 @@ export function PracticeView({
     };
   }, [dataset.id, dataset.setupSql]);
 
+  useEffect(() => {
+    logEvent('question_view', { questionId: question.id, detail: { slug: question.slug } });
+  }, [question.id, question.slug]);
+
+  useEffect(() => {
+    if (!timerRunning) return;
+    const t = setInterval(() => setSeconds((s) => s + 1), 1000);
+    return () => clearInterval(t);
+  }, [timerRunning]);
+
   // The query that Run/Submit act on: the statement at the cursor, else the whole doc.
   const queryToRun = (activeSql.trim() ? activeSql : sql).trim();
 
@@ -95,10 +117,13 @@ export function PracticeView({
     setBusy(true);
     setDrawerOpen(true);
     try {
-      setResults(await runQuery(q));
+      const rs = await runQuery(q);
+      setResults(rs);
+      logEvent('run', { questionId: question.id, detail: { ok: true, rows: rs.rows.length } });
     } catch (e) {
       setResults(null);
       setError(String(e));
+      logEvent('run', { questionId: question.id, detail: { ok: false, error: String(e) } });
     } finally {
       setBusy(false);
     }
@@ -115,13 +140,19 @@ export function PracticeView({
       setResults(got);
       const result = grade(exp, got, question.grading);
       setVerdict(result);
+      logEvent('submit', {
+        questionId: question.id,
+        detail: { correct: result.correct, reasons: result.reasons },
+      });
+      onAttempt(question.id, result.correct);
       if (result.correct) {
-        onSolved(question.id);
+        setTimerRunning(false);
         celebrate();
       }
     } catch (e) {
       setVerdict(null);
       setError(String(e));
+      logEvent('submit', { questionId: question.id, detail: { error: String(e) } });
     } finally {
       setBusy(false);
     }
@@ -130,6 +161,7 @@ export function PracticeView({
   async function handleReveal() {
     setBusy(true);
     setDrawerOpen(true);
+    logEvent('reveal', { questionId: question.id });
     try {
       await getExpected();
       setRevealed(true);
@@ -159,7 +191,10 @@ export function PracticeView({
         <div className="card">
           <div className="problem-head">
             <h2 data-testid="question-title">{question.title}</h2>
-            <DifficultyBadge difficulty={question.difficulty} />
+            <div className="head-badges">
+              {isDebug && <span className="badge badge-debug">🐞 Debug</span>}
+              <DifficultyBadge difficulty={question.difficulty} />
+            </div>
           </div>
           <p className="prompt">{question.prompt}</p>
           {(() => {
@@ -213,13 +248,22 @@ export function PracticeView({
           <button data-testid="reveal" onClick={handleReveal} disabled={!ready || busy}>
             Reveal solution
           </button>
-          {ready ? (
-            <span className="run-hint muted">⌘/Ctrl + Enter runs the query at your cursor</span>
-          ) : (
-            <span className="run-hint muted engine-loading">
-              <span className="spinner spinner-sm" /> Starting SQL engine…
+          <span className="toolbar-right">
+            <span
+              className={`timer ${seconds >= 600 ? 'danger' : seconds >= 300 ? 'warn' : ''}`}
+              data-testid="timer"
+              title="Time on this question"
+            >
+              ⏱ {formatTime(seconds)}
             </span>
-          )}
+            {ready ? (
+              <span className="run-hint muted">⌘/Ctrl+Enter</span>
+            ) : (
+              <span className="run-hint muted engine-loading">
+                <span className="spinner spinner-sm" /> Starting engine…
+              </span>
+            )}
+          </span>
         </div>
 
         <div className="editor-fill">
@@ -269,7 +313,14 @@ export function PracticeView({
                   <div>
                     <strong data-testid="verdict">{verdict.correct ? 'Correct' : 'Incorrect'}</strong>
                     {verdict.correct ? (
-                      <span className="muted">Nice — that matches the expected output.</span>
+                      <div className="verdict-correct">
+                        <span className="muted">
+                          Solved in {formatTime(seconds)}. Nice — that matches the expected output.
+                        </span>
+                        <button className="link-btn" onClick={onNext} data-testid="next-recommended">
+                          Next recommended →
+                        </button>
+                      </div>
                     ) : (
                       verdict.reasons.length > 0 && (
                         <ul data-testid="reasons">
@@ -282,6 +333,13 @@ export function PracticeView({
                       )
                     )}
                   </div>
+                </div>
+              )}
+
+              {verdict && !verdict.correct && expected && results && (
+                <div className="output-section">
+                  <span className="section-label">What’s different</span>
+                  <DiffView expected={expected} actual={results} grading={question.grading} />
                 </div>
               )}
 

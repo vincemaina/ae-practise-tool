@@ -34,5 +34,19 @@ export const marketing: Dataset = {
       (7, 4, 'organic', TIMESTAMP '2026-03-06 08:00:00', false),
       (8, 3, 'organic', TIMESTAMP '2026-03-01 07:00:00', false),
       (9, 5, 'email',   TIMESTAMP '2026-03-07 10:00:00', true);
+    -- Bulk: ~1000 sessions for users 6+. Conversion rate varies by channel
+    -- (paid/email higher, organic/social lower). Deterministic, no random().
+    INSERT INTO sessions
+      SELECT 100 + i,
+             6 + (i % 200),
+             (['organic','paid','email','social'])[(i % 4) + 1],
+             TIMESTAMP '2026-03-01 00:00:00' + (i % 30) * INTERVAL 1 DAY + (i % 24) * INTERVAL 1 HOUR,
+             CASE (i % 4)
+               WHEN 0 THEN (i * 7) % 10 < 1
+               WHEN 1 THEN (i * 7) % 10 < 5
+               WHEN 2 THEN (i * 7) % 10 < 3
+               ELSE (i * 7) % 10 < 2
+             END
+      FROM generate_series(1, 1000) AS t(i);
   `,
 };

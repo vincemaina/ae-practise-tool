@@ -19,7 +19,7 @@ export const revenueByCategory: Question = {
       JOIN products p ON p.product_id = oi.product_id
       WHERE o.status = 'completed'
       GROUP BY p.category
-      ORDER BY revenue DESC
+      ORDER BY revenue DESC, p.category
     `,
   },
   grading: { orderMatters: true },

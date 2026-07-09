@@ -1,45 +1,134 @@
-/** Minimal solved-question tracking in localStorage (no backend — ADR scope). */
-const KEY = 'ae-practice:solved:v1';
+/** Per-question progress + a daily streak, in localStorage (no backend). */
+const KEY = 'ae-practice:progress:v2';
+const LEGACY_KEY = 'ae-practice:solved:v1';
 
-export interface ProgressStore {
-  getSolved(): string[];
-  isSolved(id: string): boolean;
-  markSolved(id: string): void;
+export interface QuestionProgress {
+  solved: boolean;
+  attempts: number;
+  lastAttemptAt?: string;
+  solvedAt?: string;
 }
 
-/**
- * @param storage injectable for tests; defaults to localStorage when available
- *   (returns a no-op store in non-browser contexts like SSR or Node).
- */
-export function createProgressStore(storage?: Storage): ProgressStore {
-  const store =
-    storage ?? (typeof localStorage !== 'undefined' ? localStorage : undefined);
+export interface ProgressStats {
+  solved: number;
+  attempted: number;
+  /** Live streak (0 if the last active day wasn't today/yesterday). */
+  streak: number;
+  longestStreak: number;
+}
 
-  const read = (): Set<string> => {
-    if (!store) return new Set();
+export interface ProgressStore {
+  isSolved(id: string): boolean;
+  getSolvedIds(): string[];
+  /** Attempted but not yet solved — the "needs review" set. */
+  getReviewIds(): string[];
+  get(id: string): QuestionProgress;
+  recordAttempt(id: string, correct: boolean): void;
+  stats(): ProgressStats;
+}
+
+interface Data {
+  questions: Record<string, QuestionProgress>;
+  streak: { current: number; longest: number; lastActiveDay?: string };
+}
+
+const ymd = (d: Date): string =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+/**
+ * @param storage injectable for tests; defaults to localStorage when available.
+ * @param now injectable clock for streak tests.
+ */
+export function createProgressStore(
+  storage?: Storage,
+  now: () => Date = () => new Date(),
+): ProgressStore {
+  const store = storage ?? (typeof localStorage !== 'undefined' ? localStorage : undefined);
+
+  const empty = (): Data => ({ questions: {}, streak: { current: 0, longest: 0 } });
+
+  const read = (): Data => {
+    if (!store) return empty();
     try {
       const raw = store.getItem(KEY);
-      return new Set(raw ? (JSON.parse(raw) as string[]) : []);
+      if (raw) {
+        const parsed = JSON.parse(raw) as Partial<Data>;
+        return { questions: parsed.questions ?? {}, streak: parsed.streak ?? { current: 0, longest: 0 } };
+      }
+      // One-time migration from the old solved-id array.
+      const legacy = store.getItem(LEGACY_KEY);
+      if (legacy) {
+        const data = empty();
+        for (const id of JSON.parse(legacy) as string[]) {
+          data.questions[id] = { solved: true, attempts: 1 };
+        }
+        return data;
+      }
+      return empty();
     } catch {
-      return new Set();
+      return empty();
     }
   };
 
-  const write = (set: Set<string>): void => {
+  const write = (d: Data): void => {
     try {
-      store?.setItem(KEY, JSON.stringify([...set]));
+      store?.setItem(KEY, JSON.stringify(d));
     } catch {
-      // best-effort; ignore quota/serialization errors
+      /* best-effort */
     }
+  };
+
+  const streakAlive = (d: Data): boolean => {
+    const today = ymd(now());
+    const yesterday = ymd(new Date(now().getTime() - 86_400_000));
+    return d.streak.lastActiveDay === today || d.streak.lastActiveDay === yesterday;
   };
 
   return {
-    getSolved: () => [...read()],
-    isSolved: (id) => read().has(id),
-    markSolved: (id) => {
-      const set = read();
-      set.add(id);
-      write(set);
+    isSolved: (id) => Boolean(read().questions[id]?.solved),
+    getSolvedIds: () =>
+      Object.entries(read().questions)
+        .filter(([, q]) => q.solved)
+        .map(([id]) => id),
+    getReviewIds: () =>
+      Object.entries(read().questions)
+        .filter(([, q]) => !q.solved && q.attempts > 0)
+        .map(([id]) => id),
+    get: (id) => read().questions[id] ?? { solved: false, attempts: 0 },
+
+    recordAttempt: (id, correct) => {
+      const d = read();
+      const q = d.questions[id] ?? { solved: false, attempts: 0 };
+      q.attempts += 1;
+      q.lastAttemptAt = now().toISOString();
+      if (correct && !q.solved) {
+        q.solved = true;
+        q.solvedAt = q.lastAttemptAt;
+      } else if (correct) {
+        q.solved = true;
+      }
+      d.questions[id] = q;
+
+      // Any attempt counts as an active day for the streak.
+      const today = ymd(now());
+      if (d.streak.lastActiveDay !== today) {
+        const yesterday = ymd(new Date(now().getTime() - 86_400_000));
+        d.streak.current = d.streak.lastActiveDay === yesterday ? d.streak.current + 1 : 1;
+        d.streak.lastActiveDay = today;
+        d.streak.longest = Math.max(d.streak.longest, d.streak.current);
+      }
+      write(d);
+    },
+
+    stats: () => {
+      const d = read();
+      const qs = Object.values(d.questions);
+      return {
+        solved: qs.filter((q) => q.solved).length,
+        attempted: qs.length,
+        streak: streakAlive(d) ? d.streak.current : 0,
+        longestStreak: d.streak.longest,
+      };
     },
   };
 }

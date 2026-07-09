@@ -1,12 +1,14 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
+import { devFeedback } from './vite/dev-feedback';
 
 // DuckDB-Wasm ships its own workers + .wasm; excluding it from dep pre-bundling
 // avoids esbuild choking on the worker assets (see ADR 0005).
 export default defineConfig({
   plugins: [
     react(),
+    devFeedback(),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['icon.svg'],

@@ -7,7 +7,8 @@ export const topCompletedOrderPerCustomer: Question = {
   prompt:
     'For each customer with at least one completed order, return their single largest ' +
     'completed order: columns `name`, `order_id`, `amount` — exactly one row per customer ' +
-    '(their highest-amount completed order). Order by `amount` descending.',
+    '(their highest-amount completed order; on a tie pick the lowest order_id). Order by ' +
+    '`amount` descending, then `name`.',
   difficulty: 'hard',
   packs: ['Window Functions'],
   dialects: ['generic'],
@@ -18,8 +19,8 @@ export const topCompletedOrderPerCustomer: Question = {
       FROM customers c
       JOIN orders o ON o.customer_id = c.customer_id
       WHERE o.status = 'completed'
-      QUALIFY ROW_NUMBER() OVER (PARTITION BY c.customer_id ORDER BY o.amount DESC) = 1
-      ORDER BY o.amount DESC
+      QUALIFY ROW_NUMBER() OVER (PARTITION BY c.customer_id ORDER BY o.amount DESC, o.order_id) = 1
+      ORDER BY o.amount DESC, c.name
     `,
   },
   grading: { orderMatters: true },

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { grade } from './grade';
+import { grade, diffResults } from './grade';
 import type { ResultSet } from './types';
 
 const rs = (columns: string[], rows: ResultSet['rows']): ResultSet => ({
@@ -85,5 +85,28 @@ describe('grade', () => {
     const act = rs(['sum_amount'], [[5]]);
     expect(grade(exp, act).correct).toBe(true);
     expect(grade(exp, act, { requireColumnNames: true }).correct).toBe(false);
+  });
+});
+
+describe('diffResults', () => {
+  it('reports missing and extra rows (order-insensitive)', () => {
+    const d = diffResults(rs(['x'], [[1], [2], [3]]), rs(['x'], [[1], [2], [4]]));
+    expect(d.missingRows).toEqual([[3]]);
+    expect(d.extraRows).toEqual([[4]]);
+    expect(d.columnMismatch).toBe(false);
+    expect(d.orderWrong).toBeNull();
+  });
+
+  it('flags a column-count mismatch and skips the row diff', () => {
+    const d = diffResults(rs(['a', 'b'], [[1, 2]]), rs(['a'], [[1]]));
+    expect(d.columnMismatch).toBe(true);
+    expect(d.missingRows).toEqual([]);
+  });
+
+  it('detects right-rows-wrong-order when orderMatters', () => {
+    const d = diffResults(rs(['x'], [[1], [2]]), rs(['x'], [[2], [1]]), { orderMatters: true });
+    expect(d.missingRows).toEqual([]);
+    expect(d.extraRows).toEqual([]);
+    expect(d.orderWrong?.index).toBe(0);
   });
 });

@@ -1,12 +1,12 @@
 import type { Dataset } from '../types';
 
 /**
- * Small e-commerce dataset. Deliberately messy:
- *  - non-`completed` orders (cancelled/refunded) so filtering matters;
- *  - Dana has only a cancelled order (no completed) for anti-join questions;
- *  - Ava and Eve have equal completed-spend (80) so window RANK ties bite
- *    (RANK ≠ ROW_NUMBER). Eve's orders have no line items, so item-level
- *    questions (which inner-join order_items) are unaffected.
+ * E-commerce dataset (~1000 orders). Hybrid seed: a small set of hand-placed
+ * "special" rows (customers 1–5 and orders 101–109) guarantees the concept-bite
+ * cases — Ava & Eve tie on completed spend (RANK ≠ ROW_NUMBER), Dana has no
+ * completed order (anti-join), order 106 is a refund (net revenue) — and a
+ * deterministically generated bulk (customers 6–40, orders 1000+) adds realistic
+ * volume. No `random()` — everything is reproducible so grading stays stable.
  */
 export const ecommerce: Dataset = {
   id: 'ecommerce',
@@ -29,6 +29,9 @@ export const ecommerce: Dataset = {
       (3, 'Chen', 'SG'),
       (4, 'Dana', 'US'),
       (5, 'Eve',  'UK');
+    INSERT INTO customers
+      SELECT 5 + i, 'Customer ' || (5 + i), (['UK','US','SG','DE','FR'])[(i % 5) + 1]
+      FROM generate_series(1, 35) AS t(i);
 
     CREATE OR REPLACE TABLE orders (
       order_id    INTEGER,
@@ -47,6 +50,14 @@ export const ecommerce: Dataset = {
       (107, 4, 15.00, 'cancelled', TIMESTAMP '2026-01-08 11:00:00'),
       (108, 5, 45.00, 'completed', TIMESTAMP '2026-01-09 09:00:00'),
       (109, 5, 35.00, 'completed', TIMESTAMP '2026-01-10 16:00:00');
+    -- Bulk: customers 6–40 only, so the specials' properties are untouched.
+    INSERT INTO orders
+      SELECT 1000 + i,
+             6 + (i % 35),
+             ROUND(((i * 37 % 200) + 5) + (i % 100) / 100.0, 2),
+             (['completed','completed','completed','cancelled','refunded'])[(i % 5) + 1],
+             TIMESTAMP '2026-01-01 00:00:00' + (i % 90) * INTERVAL 1 DAY + (i % 24) * INTERVAL 1 HOUR
+      FROM generate_series(1, 1000) AS t(i);
 
     CREATE OR REPLACE TABLE products (
       product_id INTEGER,
@@ -60,8 +71,11 @@ export const ecommerce: Dataset = {
       (3, 'Doohickey', 'Hardware', 4.50),
       (4, 'E-book',    'Digital',  12.00),
       (5, 'Course',    'Digital',  49.00);
+    INSERT INTO products
+      SELECT 5 + i, 'Product ' || (5 + i), (['Hardware','Digital','Software'])[(i % 3) + 1],
+             ROUND(((i * 11 % 90) + 5) + 0.99, 2)
+      FROM generate_series(1, 7) AS t(i);
 
-    -- Line items reference existing orders (order 106 is refunded).
     CREATE OR REPLACE TABLE order_items (
       order_id   INTEGER,
       product_id INTEGER,
@@ -75,5 +89,10 @@ export const ecommerce: Dataset = {
       (103, 4, 2),
       (105, 1, 1),
       (106, 4, 1);
+    -- Bulk line items: 1–2 per generated order.
+    INSERT INTO order_items
+      SELECT 1000 + i, 1 + (i * 7 % 12), 1 + (i % 3) FROM generate_series(1, 1000) AS t(i)
+      UNION ALL
+      SELECT 1000 + i, 1 + (i * 13 % 12), 1 + ((i + 1) % 3) FROM generate_series(1, 1000) AS t(i) WHERE i % 2 = 0;
   `,
 };

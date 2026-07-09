@@ -5,16 +5,24 @@ import { PracticeView } from './PracticeView';
  *  the TopBar; this just hosts the per-question practice loop. */
 export function SolveView({
   question,
-  onSolved,
+  onAttempt,
+  onNext,
   dark,
 }: {
   question: Question;
-  onSolved: (id: string) => void;
+  onAttempt: (id: string, correct: boolean) => void;
+  onNext: () => void;
   dark: boolean;
 }) {
   return (
     <main className="page solve-page">
-      <PracticeView key={question.id} question={question} onSolved={onSolved} dark={dark} />
+      <PracticeView
+        key={question.id}
+        question={question}
+        onAttempt={onAttempt}
+        onNext={onNext}
+        dark={dark}
+      />
     </main>
   );
 }

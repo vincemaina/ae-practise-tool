@@ -127,3 +127,64 @@ export function grade(
   }
   return { correct: reasons.length === 0, reasons };
 }
+
+export interface GradeDiff {
+  expectedColumns: string[];
+  actualColumns: string[];
+  /** Column count (or required names) differ — row diff is skipped. */
+  columnMismatch: boolean;
+  /** Rows in the expected output absent from the user's (original cell values). */
+  missingRows: Cell[][];
+  /** Rows in the user's output not expected. */
+  extraRows: Cell[][];
+  /** Order-only failure: same rows, first position that differs. */
+  orderWrong: { index: number; expected: Cell[]; actual: Cell[] } | null;
+}
+
+/** A structured diff for the "why is this wrong" view (uses the same
+ *  normalisation as grade()). Returns original cell values for display. */
+export function diffResults(
+  expected: ResultSet,
+  actual: ResultSet,
+  options: GradeOptions = {},
+): GradeDiff {
+  const requireColumnNames = options.requireColumnNames ?? false;
+  const tolerance = options.numericTolerance ?? 0;
+  const caseSensitiveText = options.caseSensitiveText ?? true;
+  const orderMatters = options.orderMatters ?? false;
+
+  const expectedColumns = expected.columns.map((c) => c.name);
+  const actualColumns = actual.columns.map((c) => c.name);
+
+  if (expectedColumns.length !== actualColumns.length) {
+    return { expectedColumns, actualColumns, columnMismatch: true, missingRows: [], extraRows: [], orderWrong: null };
+  }
+  const namesDiffer =
+    requireColumnNames &&
+    expectedColumns.some((n, i) => n.toLowerCase() !== (actualColumns[i] ?? '').toLowerCase());
+
+  const expNorm = expected.rows.map((r) => r.map((c) => normalize(c, caseSensitiveText)));
+  const actNorm = actual.rows.map((r) => r.map((c) => normalize(c, caseSensitiveText)));
+
+  const used = new Array<boolean>(actNorm.length).fill(false);
+  const missingRows: Cell[][] = [];
+  for (let e = 0; e < expNorm.length; e++) {
+    const idx = actNorm.findIndex((ar, i) => !used[i] && rowsEqual(expNorm[e]!, ar, tolerance));
+    if (idx === -1) missingRows.push(expected.rows[e]!);
+    else used[idx] = true;
+  }
+  const extraRows = actual.rows.filter((_, i) => !used[i]);
+
+  let orderWrong: GradeDiff['orderWrong'] = null;
+  if (orderMatters && missingRows.length === 0 && extraRows.length === 0) {
+    const n = Math.min(expNorm.length, actNorm.length);
+    for (let i = 0; i < n; i++) {
+      if (!rowsEqual(expNorm[i]!, actNorm[i]!, tolerance)) {
+        orderWrong = { index: i, expected: expected.rows[i]!, actual: actual.rows[i]! };
+        break;
+      }
+    }
+  }
+
+  return { expectedColumns, actualColumns, columnMismatch: namesDiffer, missingRows, extraRows, orderWrong };
+}

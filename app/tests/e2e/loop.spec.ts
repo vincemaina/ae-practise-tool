@@ -21,7 +21,7 @@ test('selects a question, runs and grades a correct answer, records progress', a
   page.on('pageerror', (e) => pageErrors.push(String(e)));
 
   await page.goto('/');
-  await expect(page.getByTestId('progress')).toHaveText('Solved 0/26');
+  await expect(page.getByTestId('progress')).toHaveAttribute('aria-label', /Solved 0 of 33/);
 
   await page.getByTestId('q-customer-completed-revenue').click();
   await expect(page.getByTestId('question-title')).toContainText('Revenue per customer');
@@ -35,7 +35,7 @@ test('selects a question, runs and grades a correct answer, records progress', a
 
   await page.getByTestId('submit').click();
   await expect(page.getByTestId('verdict')).toHaveText('Correct');
-  await expect(page.getByTestId('progress')).toHaveText('Solved 1/26');
+  await expect(page.getByTestId('progress')).toHaveAttribute('aria-label', /Solved 1 of 33/);
 
   expect(pageErrors, `page errors: ${pageErrors.join('\n')}`).toEqual([]);
 });

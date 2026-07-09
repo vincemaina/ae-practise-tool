@@ -57,6 +57,7 @@ function ProgressRing({ solved, total }: { solved: number; total: number }) {
 export function TopBar({
   solved,
   total,
+  streak,
   theme,
   onToggleTheme,
   onHome,
@@ -67,6 +68,7 @@ export function TopBar({
 }: {
   solved: number;
   total: number;
+  streak: number;
   theme: Theme;
   onToggleTheme: () => void;
   onHome: () => void;
@@ -102,6 +104,11 @@ export function TopBar({
               <Chevron dir="right" />
             </button>
           </div>
+        )}
+        {streak > 0 && (
+          <span className="streak-chip" data-testid="streak" title={`${streak}-day streak`}>
+            🔥 {streak}
+          </span>
         )}
         <ProgressRing solved={solved} total={total} />
         <ProfileMenu

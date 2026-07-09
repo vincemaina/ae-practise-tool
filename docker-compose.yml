@@ -1,0 +1,24 @@
+# Runs the agent's dev container with an ISOLATED node_modules so it never
+# fights the host's macOS install (and vice-versa). The repo is shared with the
+# host; only app/node_modules is container-private (a named volume).
+#
+#   docker compose up -d --build     # start (first run compiles native deps)
+#   docker compose exec dev bash     # shell in; run pnpm/python here
+#   docker compose down              # stop (deps persist in the volume)
+#
+# The HOST keeps running `pnpm dev` / `pnpm install` directly on macOS as usual —
+# this container is just where the agent works.
+services:
+  dev:
+    build: .
+    working_dir: /workspace/app
+    volumes:
+      - .:/workspace # the repo, shared with the host
+      - agent_node_modules:/workspace/app/node_modules # container-only deps (the fix)
+    environment:
+      FEEDBACK_DB: /workspace/.dev-data/feedback.sqlite
+    # Populate/refresh the volume on start, then stay alive for `exec`.
+    command: sh -c "pnpm install && sleep infinity"
+
+volumes:
+  agent_node_modules:

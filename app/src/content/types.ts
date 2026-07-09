@@ -31,4 +31,8 @@ export interface Question {
   grading: GradeOptions;
   /** Progressive hints, shown on request (optional). */
   hints?: string[];
+  /** 'write' (default) or 'debug' (fix a broken starter query). */
+  challengeType?: 'write' | 'debug';
+  /** For debug questions: the broken query the editor pre-fills with. */
+  starterSql?: string;
 }

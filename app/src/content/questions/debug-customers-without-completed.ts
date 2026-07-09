@@ -1,0 +1,38 @@
+import type { Question } from '../types';
+
+export const debugCustomersWithoutCompleted: Question = {
+  id: 'q-debug-customers-without-completed',
+  slug: 'debug-customers-without-completed',
+  title: 'Debug: customers with no completed order',
+  prompt:
+    'This query should list customers who have **never** placed a completed order ' +
+    '(alphabetical, single column `name`). The logic is wrong — it returns anyone with a ' +
+    'non-completed order, even if they also have completed ones. Fix it.',
+  difficulty: 'medium',
+  packs: ['Debugging SQL', 'CTEs & Subqueries'],
+  dialects: ['generic'],
+  datasetId: 'ecommerce',
+  challengeType: 'debug',
+  starterSql: `
+    SELECT DISTINCT c.name
+    FROM customers c
+    JOIN orders o ON o.customer_id = c.customer_id
+    WHERE o.status <> 'completed'
+    ORDER BY c.name
+  `,
+  canonical: {
+    generic: `
+      SELECT name
+      FROM customers
+      WHERE customer_id NOT IN (
+        SELECT customer_id FROM orders WHERE status = 'completed'
+      )
+      ORDER BY name
+    `,
+  },
+  grading: { orderMatters: true },
+  hints: [
+    'A customer can have both completed and non-completed orders — "has a cancelled order" ≠ "has no completed order".',
+    'Exclude customers who appear in the set of completed-order customers (NOT IN / anti-join).',
+  ],
+};

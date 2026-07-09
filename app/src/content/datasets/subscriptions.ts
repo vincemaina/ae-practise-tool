@@ -29,5 +29,15 @@ export const subscriptions: Dataset = {
       (4, 'Umbrella', 'Enterprise', 499.00, DATE '2026-01-20', NULL),
       (5, 'Hooli',    'Basic',      29.00,  DATE '2025-10-01', DATE '2026-01-05'),
       (6, 'Stark',    'Pro',        99.00,  DATE '2026-02-02', DATE '2026-03-01');
+    -- Bulk: ~1000 subscriptions. Plan (i%3) and churn (i%4) are independent so every
+    -- plan has a mix of active/churned. Deterministic, no random().
+    INSERT INTO subscriptions
+      SELECT 100 + i,
+             'Customer ' || i,
+             (['Basic','Pro','Enterprise'])[(i % 3) + 1],
+             ([29.00, 99.00, 499.00])[(i % 3) + 1],
+             (DATE '2025-06-01' + (i % 365) * INTERVAL 1 DAY)::DATE,
+             CASE WHEN i % 4 = 0 THEN (DATE '2026-03-01' + (i % 90) * INTERVAL 1 DAY)::DATE ELSE NULL END
+      FROM generate_series(1, 1000) AS t(i);
   `,
 };

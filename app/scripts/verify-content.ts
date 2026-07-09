@@ -11,7 +11,7 @@ import { createRequire } from 'node:module';
 import * as duckdb from '@duckdb/duckdb-wasm/dist/duckdb-node-blocking.cjs';
 import { tableToResultSet } from '../src/engine/result-mapping';
 import { grade } from '../src/grading/grade';
-import { questions, getDataset } from '../src/content';
+import { questions, getDataset, paths } from '../src/content';
 import { extractMetrics } from '../src/content/metrics';
 import { questionMetadata } from '../src/content/question-metadata.generated';
 
@@ -85,6 +85,20 @@ for (const q of questions) {
     recomputed === JSON.stringify(questionMetadata[q.id]),
     'stale',
   );
+
+  // Debug challenges: the starter must run AND grade as wrong (a real bug to fix).
+  if (q.challengeType === 'debug' && q.starterSql) {
+    try {
+      const starterOut = runQuery(q.starterSql.trim());
+      check(
+        'debug starter runs and is actually wrong',
+        !grade(expected, starterOut, q.grading).correct,
+        'starter already matches the expected output',
+      );
+    } catch (e) {
+      check('debug starter runs and is actually wrong', false, `starter errored: ${String(e)}`);
+    }
+  }
 }
 
 // Question-specific expectations for the seed question.
@@ -92,12 +106,6 @@ console.log('\nQuestion-specific checks');
 exec(getDataset('ecommerce').setupSql);
 const q1 = questions.find((q) => q.id === 'q-customer-completed-revenue')!;
 const expected = runQuery((q1.canonical.generic ?? '').trim());
-check(
-  'expected = [Ben 99.99, Ava 80, Eve 80, Chen 10] in order',
-  JSON.stringify(expected.rows) ===
-    JSON.stringify([['Ben', 99.99], ['Ava', 80], ['Eve', 80], ['Chen', 10]]),
-  JSON.stringify(expected.rows),
-);
 check('wrong shape is Incorrect', !grade(expected, runQuery('SELECT name FROM customers'), q1.grading).correct);
 check(
   'wrong row order is Incorrect (orderMatters)',
@@ -119,6 +127,14 @@ check(
     q1.grading,
   ).correct,
 );
+
+// Learning paths must reference real question ids.
+console.log('\nLearning path checks');
+const ids = new Set(questions.map((q) => q.id));
+for (const p of paths) {
+  const missing = p.questionIds.filter((id) => !ids.has(id));
+  check(`path "${p.id}" references valid questions`, missing.length === 0, missing.join(', '));
+}
 
 console.log(`\n${failures === 0 ? 'ALL CONTENT CHECKS PASSED ✓' : `${failures} CHECK(S) FAILED ✗`}`);
 process.exit(failures === 0 ? 0 : 1);

@@ -1,0 +1,38 @@
+import type { Question } from '../types';
+
+export const timeToFirstPurchase: Question = {
+  id: 'q-time-to-first-purchase',
+  slug: 'time-to-first-purchase',
+  title: 'Average time to first purchase',
+  prompt:
+    'For users who signed up and later purchased, compute the minutes from their signup to ' +
+    'their first purchase (only counting purchases after signup). Return the average across ' +
+    'those users, rounded to 1 decimal, as a single column avg_minutes.',
+  difficulty: 'hard',
+  packs: ['Funnels & Retention'],
+  dialects: ['generic'],
+  datasetId: 'events',
+  canonical: {
+    generic: `
+      WITH signups AS (
+        SELECT user_id, MIN(event_at) AS signup_at
+        FROM events WHERE event_name = 'signup'
+        GROUP BY user_id
+      ),
+      purchases AS (
+        SELECT user_id, MIN(event_at) AS first_purchase_at
+        FROM events WHERE event_name = 'purchase'
+        GROUP BY user_id
+      )
+      SELECT ROUND(AVG(date_diff('minute', s.signup_at, p.first_purchase_at)), 1) AS avg_minutes
+      FROM signups s
+      JOIN purchases p ON p.user_id = s.user_id
+      WHERE p.first_purchase_at > s.signup_at
+    `,
+  },
+  grading: {},
+  hints: [
+    'Get each user’s first signup and first purchase in two CTEs, then join on user_id.',
+    'Keep only users whose first purchase is after signup; AVG the minute gap.',
+  ],
+};

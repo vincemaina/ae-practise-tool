@@ -4,15 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Current state
 
-This is a **greenfield project**. There is no application code yet — only `.idea/` IDE config and a brainstorm document at `notes/chatgpt/brainstorm.md`. Read that document first: it is the single source of product intent.
-
-**Stack is decided: a client-side React + Vite + TypeScript PWA.** (Earlier Python `uv` scaffolding has been removed; ignore the stale Python SDK reference still in `.idea/misc.xml`.) The app (`app/`) is not yet scaffolded — discuss setup with the user before generating it.
+The client-side React + Vite + TypeScript PWA is built and live in `app/` — a working SQL practice tool (DuckDB-Wasm engine, ~33 questions across 5 datasets, output-equivalence grading, worksheet UI, PWA, dev feedback loop). **`app/CLAUDE.md` is the source of truth for the app** — read it for architecture, commands, and conventions. Phases 0–3 are largely done; see `ROADMAP.md` for what's next.
 
 ### Key docs (read these to get oriented)
-- `notes/chatgpt/brainstorm.md` — product intent (the original brainstorm).
+- **`app/CLAUDE.md`** — the app's architecture, commands, and working conventions (start here for code work).
 - `ROADMAP.md` — phased plan + current status. The map for what's next.
-- `decisions/` — Architecture Decision Records (one per meaningful choice). `0001` = engine (DuckDB-Wasm, proposed).
-- `notes/research/` — general research (sql-practice.com, competitors, engines).
+- `decisions/` — Architecture Decision Records (engine, dialect, grading, etc.).
+- `docs/dev-container.md` — **run the agent's container with an isolated `node_modules`** (Dockerfile + docker-compose.yml) to avoid host↔container native-binary clobbering.
+- `notes/chatgpt/brainstorm.md` — original product intent · `notes/research/` — research.
 
 ## Git — leave it to the user (hard rule)
 

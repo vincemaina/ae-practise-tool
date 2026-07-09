@@ -17,7 +17,7 @@ export const mrrByPlan: Question = {
       FROM subscriptions
       WHERE canceled_at IS NULL
       GROUP BY plan
-      ORDER BY mrr DESC
+      ORDER BY mrr DESC, plan
     `,
   },
   grading: { orderMatters: true },

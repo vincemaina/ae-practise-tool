@@ -103,6 +103,32 @@ export function extractMetrics(astJson: string): QuestionMetrics {
   };
 }
 
+/** Canonical concept order for filters (only those present are surfaced). */
+export const CONCEPT_ORDER = [
+  'Joins',
+  'Multiple tables',
+  'Grouping',
+  'Aggregation',
+  'Subqueries',
+  'CTEs',
+  'Window functions',
+  'Distinct',
+] as const;
+
+/** Structural concepts a question exercises, derived from its metrics. */
+export function conceptsOf(m: QuestionMetrics): string[] {
+  const c = new Set<string>();
+  if (m.joins) c.add('Joins');
+  if (m.tableCount > 1) c.add('Multiple tables');
+  if (m.groupBy) c.add('Grouping');
+  if (m.aggregates) c.add('Aggregation');
+  if (m.subqueries) c.add('Subqueries');
+  if (m.ctes) c.add('CTEs');
+  if (m.windowFunctions) c.add('Window functions');
+  if (m.distinct) c.add('Distinct');
+  return CONCEPT_ORDER.filter((x) => c.has(x));
+}
+
 /** Short human-readable chips, e.g. ["2 tables", "1 join", "window function"]. */
 export function metricTags(m: QuestionMetrics): string[] {
   const tags: string[] = [];

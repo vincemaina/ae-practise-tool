@@ -1,0 +1,30 @@
+import type { Question } from '../types';
+
+export const jsonPurchaseTotalByCurrency: Question = {
+  id: 'q-json-purchase-total-by-currency',
+  slug: 'json-purchase-total-by-currency',
+  title: 'Purchase totals from JSON payloads',
+  prompt:
+    'Each api_logs row stores a JSON payload. For purchase events only (payload action = ' +
+    '"purchase"), return the total amount per currency, highest total first (ties by ' +
+    'currency). Columns: currency, total.',
+  difficulty: 'hard',
+  packs: ['Semi-Structured Data'],
+  dialects: ['generic'],
+  datasetId: 'api_logs',
+  canonical: {
+    generic: `
+      SELECT payload->>'currency' AS currency,
+             SUM(CAST(payload->>'amount' AS DECIMAL(10,2))) AS total
+      FROM api_logs
+      WHERE payload->>'action' = 'purchase'
+      GROUP BY currency
+      ORDER BY total DESC, currency
+    `,
+  },
+  grading: { orderMatters: true },
+  hints: [
+    "Extract JSON fields as text with the ->> operator, e.g. payload->>'currency'.",
+    "Filter where payload->>'action' = 'purchase'; CAST payload->>'amount' to a number to SUM it.",
+  ],
+};

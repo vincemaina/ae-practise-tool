@@ -61,6 +61,33 @@ describe('App', () => {
     expect(screen.queryByTestId('q-orders-by-status')).toBeNull();
   });
 
+  it('filters by concept (from derived metadata)', () => {
+    render(<App />);
+    fireEvent.change(screen.getByTestId('filter-concept'), { target: { value: 'Window functions' } });
+    expect(screen.getByTestId('q-sessions-per-user')).toBeTruthy();
+    expect(screen.queryByTestId('q-orders-by-status')).toBeNull();
+  });
+
+  it('opening a learning track filters to its questions', () => {
+    render(<App />);
+    fireEvent.click(screen.getByTestId('track-window'));
+    expect(screen.getByTestId('q-sessions-per-user')).toBeTruthy();
+    expect(screen.queryByTestId('q-orders-by-status')).toBeNull();
+    fireEvent.click(screen.getByTestId('clear-track'));
+    expect(screen.getByTestId('q-orders-by-status')).toBeTruthy();
+  });
+
+  it('shows a recommended-next banner on the list', () => {
+    render(<App />);
+    expect(screen.getByTestId('recommended')).toBeTruthy();
+  });
+
+  it('marks debug challenges with a Debug badge', () => {
+    render(<App />);
+    fireEvent.click(screen.getByTestId('q-debug-distinct-purchasers'));
+    expect(screen.getByText('🐞 Debug')).toBeTruthy();
+  });
+
   it('toggles the theme via the profile menu', () => {
     render(<App />);
     fireEvent.click(screen.getByTestId('profile'));

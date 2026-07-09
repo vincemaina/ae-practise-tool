@@ -27,7 +27,7 @@ export default tseslint.config(
   },
   // Node-context files.
   {
-    files: ['*.config.{ts,js}', 'tests/**/*.ts', 'scripts/**/*.ts'],
+    files: ['*.config.{ts,js}', 'tests/**/*.ts', 'scripts/**/*.ts', 'vite/**/*.ts'],
     languageOptions: { globals: globals.node },
   },
 );
