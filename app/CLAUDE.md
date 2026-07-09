@@ -29,6 +29,7 @@ While the user runs `pnpm dev` on their machine, the app logs feedback + telemet
 - `pnpm typecheck` · `pnpm lint` · `pnpm test` (Vitest)
 - `pnpm verify:content` — boots the real DuckDB-Wasm engine in Node and grades every question's canonical solution against its dataset (our ADR 0003 authoring check; also our headless stand-in for e2e). Also checks derived metadata isn't stale.
 - `pnpm meta:generate` — regenerate `src/content/question-metadata.generated.ts` after changing any canonical solution.
+- `pnpm coverage` — regenerate root `COVERAGE.md`: a live SQL-feature checklist with per-feature question counts, derived from canonical SQL. Feature catalog + detectors in `src/content/features.ts`; `snowflake-vs-duckdb.md` explains the dialect strategy. A question can carry `features: [...]` to tag concepts the detector can't infer (e.g. self-joins).
 - `pnpm e2e` — Playwright run→grade loop in a real browser. **Needs browser system libs:** `pnpm exec playwright install --with-deps chromium` (requires root; not available in the minimal CI sandbox — `verify:content` covers the engine+grading path there).
 - **Definition of done:** typecheck + lint + test + verify:content green, and (where a browser is available) the Playwright loop passes with no console errors (ADR 0005).
 

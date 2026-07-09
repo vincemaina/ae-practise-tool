@@ -35,4 +35,6 @@ export interface Question {
   challengeType?: 'write' | 'debug';
   /** For debug questions: the broken query the editor pre-fills with. */
   starterSql?: string;
+  /** Feature ids (see features.ts) the auto-detector can't infer, e.g. self-joins. */
+  features?: string[];
 }

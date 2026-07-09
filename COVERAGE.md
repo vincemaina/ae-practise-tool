@@ -6,52 +6,52 @@
 > DuckDB’s — i.e. where a dialect/transpile layer (ADR 0002) is needed for
 > true fidelity.
 
-**21/51 features covered** across 37 questions.
+**39/51 features covered** across 54 questions.
 
 ## Foundations
 
 | | Feature | Questions | Snowflake nuance |
 |---|---|--:|---|
-| ✅ | Filtering (WHERE) | 28 |  |
-| ✅ | Sorting (ORDER BY) | 28 |  |
+| ✅ | Filtering (WHERE) | 38 |  |
+| ✅ | Sorting (ORDER BY) | 45 |  |
 | ✅ | LIMIT / OFFSET | 1 | ⚠️ Snowflake also supports TOP n |
-| ✅ | DISTINCT | 5 |  |
-| ✅ | CASE expressions | 3 |  |
-| ☐ | COALESCE / NULLIF | 0 |  |
+| ✅ | DISTINCT | 8 |  |
+| ✅ | CASE expressions | 5 |  |
+| ✅ | COALESCE / NULLIF | 1 |  |
 
 ## Joins
 
 | | Feature | Questions | Snowflake nuance |
 |---|---|--:|---|
-| ✅ | Inner join | 12 |  |
-| ☐ | Left join | 0 |  |
-| ☐ | Right join | 0 |  |
-| ☐ | Full outer join | 0 |  |
-| ☐ | Cross join | 0 |  |
-| ☐ | Self join | 0 | ⚠️ Same in both — detected via aliasing; tag manually |
+| ✅ | Inner join | 19 |  |
+| ✅ | Left join | 1 |  |
+| ✅ | Right join | 1 |  |
+| ✅ | Full outer join | 1 |  |
+| ✅ | Cross join | 1 |  |
+| ✅ | Self join | 1 | ⚠️ Same in both — detected via aliasing; tag manually |
 | ✅ | Anti-join (NOT IN / NOT EXISTS) | 2 |  |
-| ☐ | Semi-join (IN / EXISTS) | 0 |  |
+| ✅ | Semi-join (IN / EXISTS) | 1 |  |
 
 ## Aggregation & grouping
 
 | | Feature | Questions | Snowflake nuance |
 |---|---|--:|---|
-| ✅ | GROUP BY | 24 |  |
+| ✅ | GROUP BY | 33 |  |
 | ✅ | HAVING | 2 |  |
-| ✅ | Aggregate functions | 30 |  |
-| ✅ | Conditional aggregation (FILTER / CASE) | 3 | ⚠️ FILTER(WHERE …) works in both; Snowflake also uses SUM(CASE …) |
-| ☐ | GROUP BY ROLLUP | 0 |  |
-| ☐ | GROUP BY CUBE | 0 |  |
-| ☐ | GROUPING SETS | 0 |  |
+| ✅ | Aggregate functions | 39 |  |
+| ✅ | Conditional aggregation (FILTER / CASE) | 4 | ⚠️ FILTER(WHERE …) works in both; Snowflake also uses SUM(CASE …) |
+| ✅ | GROUP BY ROLLUP | 1 |  |
+| ✅ | GROUP BY CUBE | 1 |  |
+| ✅ | GROUPING SETS | 1 |  |
 | ☐ | GROUPING() function | 0 |  |
-| ☐ | PIVOT / UNPIVOT | 0 |  |
+| ✅ | PIVOT / UNPIVOT | 1 |  |
 
 ## Subqueries & CTEs
 
 | | Feature | Questions | Snowflake nuance |
 |---|---|--:|---|
-| ✅ | Subquery | 9 |  |
-| ✅ | CTE (WITH) | 5 |  |
+| ✅ | Subquery | 14 |  |
+| ✅ | CTE (WITH) | 7 |  |
 | ☐ | Recursive CTE | 0 | ⚠️ Snowflake: WITH RECURSIVE or CONNECT BY |
 
 ## Window functions
@@ -61,17 +61,17 @@
 | ✅ | ROW_NUMBER | 2 |  |
 | ✅ | RANK / DENSE_RANK | 2 |  |
 | ✅ | LAG / LEAD | 3 |  |
-| ✅ | Running aggregate (OVER) | 8 |  |
-| ☐ | NTILE | 0 |  |
-| ☐ | FIRST_VALUE / LAST_VALUE / NTH_VALUE | 0 |  |
-| ☐ | Explicit window frame (ROWS/RANGE BETWEEN) | 0 |  |
+| ✅ | Running aggregate (OVER) | 10 |  |
+| ✅ | NTILE | 1 |  |
+| ✅ | FIRST_VALUE / LAST_VALUE / NTH_VALUE | 1 |  |
+| ✅ | Explicit window frame (ROWS/RANGE BETWEEN) | 2 |  |
 | ✅ | QUALIFY | 2 |  |
 
 ## Strings & regex
 
 | | Feature | Questions | Snowflake nuance |
 |---|---|--:|---|
-| ☐ | LIKE / ILIKE | 0 |  |
+| ✅ | LIKE / ILIKE | 1 |  |
 | ☐ | SUBSTRING / SPLIT / string funcs | 0 |  |
 | ☐ | Regex match | 0 | ⚠️ Snowflake: REGEXP_LIKE / RLIKE |
 | ☐ | Regex extract | 0 | ⚠️ Snowflake: REGEXP_SUBSTR |
@@ -100,29 +100,14 @@
 
 | | Feature | Questions | Snowflake nuance |
 |---|---|--:|---|
-| ☐ | UNION / UNION ALL | 0 |  |
-| ☐ | EXCEPT / MINUS | 0 | ⚠️ Snowflake: EXCEPT or MINUS |
-| ☐ | INTERSECT | 0 |  |
+| ✅ | UNION / UNION ALL | 1 |  |
+| ✅ | EXCEPT / MINUS | 1 | ⚠️ Snowflake: EXCEPT or MINUS |
+| ✅ | INTERSECT | 1 |  |
 
 ## Gaps (0 questions)
 
-- Foundations → COALESCE / NULLIF
-- Joins → Left join
-- Joins → Right join
-- Joins → Full outer join
-- Joins → Cross join
-- Joins → Self join
-- Joins → Semi-join (IN / EXISTS)
-- Aggregation & grouping → GROUP BY ROLLUP
-- Aggregation & grouping → GROUP BY CUBE
-- Aggregation & grouping → GROUPING SETS
 - Aggregation & grouping → GROUPING() function
-- Aggregation & grouping → PIVOT / UNPIVOT
 - Subqueries & CTEs → Recursive CTE
-- Window functions → NTILE
-- Window functions → FIRST_VALUE / LAST_VALUE / NTH_VALUE
-- Window functions → Explicit window frame (ROWS/RANGE BETWEEN)
-- Strings & regex → LIKE / ILIKE
 - Strings & regex → SUBSTRING / SPLIT / string funcs
 - Strings & regex → Regex match
 - Strings & regex → Regex extract
@@ -133,6 +118,3 @@
 - Semi-structured → Array / list functions
 - Semi-structured → Higher-order / lambda
 - Semi-structured → FLATTEN / UNNEST rows
-- Set operations → UNION / UNION ALL
-- Set operations → EXCEPT / MINUS
-- Set operations → INTERSECT

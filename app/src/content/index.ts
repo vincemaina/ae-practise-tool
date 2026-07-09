@@ -51,6 +51,28 @@ import { debugCompletedRevenue } from './questions/debug-completed-revenue';
 import { debugDistinctPurchasers } from './questions/debug-distinct-purchasers';
 import { debugCustomersWithoutCompleted } from './questions/debug-customers-without-completed';
 import { debugSpendRank } from './questions/debug-spend-rank';
+// Advanced: join types
+import { leftJoinOrderCounts } from './questions/left-join-order-counts';
+import { rightJoinProductsUnsold } from './questions/right-join-products-unsold';
+import { fullJoinChannelOverlap } from './questions/full-join-channel-overlap';
+import { crossJoinCountryStatusGrid } from './questions/cross-join-country-status-grid';
+import { selfJoinProductPairs } from './questions/self-join-product-pairs';
+import { semiJoinExistsCompleted } from './questions/semi-join-exists-completed';
+// Advanced: grouping sets / rollup / cube / pivot
+import { rollupRevenueByCategory } from './questions/rollup-revenue-by-category';
+import { cubeOrdersCountryStatus } from './questions/cube-orders-country-status';
+import { groupingSetsCountryStatus } from './questions/grouping-sets-country-status';
+import { pivotStatusByCountry } from './questions/pivot-status-by-country';
+// Advanced: set operations
+import { exceptNoCompleted } from './questions/except-no-completed';
+import { intersectCompletedAndRefunded } from './questions/intersect-completed-and-refunded';
+import { unionMerchOrPremium } from './questions/union-merch-or-premium';
+// Advanced: window functions
+import { ntileSpendQuartiles } from './questions/ntile-spend-quartiles';
+import { firstLastOrderAmount } from './questions/first-last-order-amount';
+import { movingAvgRevenue } from './questions/moving-avg-revenue';
+// Advanced: strings
+import { likeNamedCustomers } from './questions/like-named-customers';
 
 export const datasets: Record<string, Dataset> = {
   [ecommerce.id]: ecommerce,
@@ -101,6 +123,28 @@ export const questions: Question[] = [
   debugDistinctPurchasers,
   debugCustomersWithoutCompleted,
   debugSpendRank,
+  // Advanced: join types
+  leftJoinOrderCounts,
+  rightJoinProductsUnsold,
+  fullJoinChannelOverlap,
+  crossJoinCountryStatusGrid,
+  selfJoinProductPairs,
+  semiJoinExistsCompleted,
+  // Advanced: grouping sets / rollup / cube / pivot
+  rollupRevenueByCategory,
+  cubeOrdersCountryStatus,
+  groupingSetsCountryStatus,
+  pivotStatusByCountry,
+  // Advanced: set operations
+  exceptNoCompleted,
+  intersectCompletedAndRefunded,
+  unionMerchOrPremium,
+  // Advanced: window functions
+  ntileSpendQuartiles,
+  firstLastOrderAmount,
+  movingAvgRevenue,
+  // Advanced: strings
+  likeNamedCustomers,
 ];
 
 const DIFF_RANK: Record<Difficulty, number> = { easy: 0, medium: 1, hard: 2 };

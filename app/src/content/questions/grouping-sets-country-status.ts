@@ -1,0 +1,30 @@
+import type { Question } from '../types';
+
+export const groupingSetsCountryStatus: Question = {
+  id: 'q-grouping-sets-country-status',
+  slug: 'grouping-sets-country-status',
+  title: 'Order counts by country, by status, and overall',
+  prompt:
+    'In a single query using GROUP BY GROUPING SETS, return order counts grouped three ways: ' +
+    'by country alone, by status alone, and overall (one grand-total row) — but NOT the ' +
+    'country×status combinations. Columns: country, status, orders. Order by country then ' +
+    'status, NULLs last.',
+  difficulty: 'medium',
+  packs: ['Grouping Sets & Rollups'],
+  dialects: ['generic'],
+  datasetId: 'ecommerce',
+  canonical: {
+    generic: `
+      SELECT c.country, o.status, COUNT(*) AS orders
+      FROM customers c
+      JOIN orders o ON o.customer_id = c.customer_id
+      GROUP BY GROUPING SETS ((c.country), (o.status), ())
+      ORDER BY c.country NULLS LAST, o.status NULLS LAST
+    `,
+  },
+  grading: { orderMatters: true },
+  hints: [
+    'GROUPING SETS lets you list exactly which groupings you want.',
+    'Use ((country), (status), ()) — the empty set () is the grand total.',
+  ],
+};

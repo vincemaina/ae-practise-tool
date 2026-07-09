@@ -32,6 +32,8 @@ export const ecommerce: Dataset = {
     INSERT INTO customers
       SELECT 5 + i, 'Customer ' || (5 + i), (['UK','US','SG','DE','FR'])[(i % 5) + 1]
       FROM generate_series(1, 35) AS t(i);
+    -- Two customers with NO orders at all (for LEFT/FULL join + anti-join demos).
+    INSERT INTO customers VALUES (41, 'Finn', 'UK'), (42, 'Gwen', 'US');
 
     CREATE OR REPLACE TABLE orders (
       order_id    INTEGER,
@@ -55,7 +57,8 @@ export const ecommerce: Dataset = {
       SELECT 1000 + i,
              6 + (i % 35),
              ROUND(((i * 37 % 200) + 5) + (i % 100) / 100.0, 2),
-             (['completed','completed','completed','cancelled','refunded'])[(i % 5) + 1],
+             -- status keyed on i//5 so it's independent of country (i%5-driven)
+             (['completed','completed','completed','cancelled','refunded'])[((i // 5) % 5) + 1],
              TIMESTAMP '2026-01-01 00:00:00' + (i % 90) * INTERVAL 1 DAY + (i % 24) * INTERVAL 1 HOUR
       FROM generate_series(1, 1000) AS t(i);
 
@@ -75,6 +78,11 @@ export const ecommerce: Dataset = {
       SELECT 5 + i, 'Product ' || (5 + i), (['Hardware','Digital','Software'])[(i % 3) + 1],
              ROUND(((i * 11 % 90) + 5) + 0.99, 2)
       FROM generate_series(1, 7) AS t(i);
+    -- Three products never ordered (no order_items reference id > 12) for join NULLs.
+    INSERT INTO products VALUES
+      (13, 'Prototype', 'Hardware', 199.00),
+      (14, 'Sticker',   'Merch',    2.00),
+      (15, 'Poster',    'Merch',    8.00);
 
     CREATE OR REPLACE TABLE order_items (
       order_id   INTEGER,

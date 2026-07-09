@@ -15,6 +15,7 @@ interface Row {
 
 const rows: Row[] = FEATURES.map((feature) => {
   const matched = questions.filter((q) => {
+    if (q.features?.includes(feature.id)) return true; // manual tag (detection can't infer, e.g. self-join)
     const sql = (q.canonical.generic ?? '').toUpperCase().replace(/\s+/g, ' ');
     try {
       return feature.detect(sql);
