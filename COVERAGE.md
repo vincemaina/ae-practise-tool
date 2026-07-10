@@ -6,24 +6,24 @@
 > DuckDB’s — i.e. where a dialect/transpile layer (ADR 0002) is needed for
 > true fidelity.
 
-**39/51 features covered** across 54 questions.
+**43/51 features covered** across 58 questions.
 
 ## Foundations
 
 | | Feature | Questions | Snowflake nuance |
 |---|---|--:|---|
-| ✅ | Filtering (WHERE) | 38 |  |
-| ✅ | Sorting (ORDER BY) | 45 |  |
+| ✅ | Filtering (WHERE) | 42 |  |
+| ✅ | Sorting (ORDER BY) | 49 |  |
 | ✅ | LIMIT / OFFSET | 1 | ⚠️ Snowflake also supports TOP n |
 | ✅ | DISTINCT | 8 |  |
-| ✅ | CASE expressions | 5 |  |
+| ✅ | CASE expressions | 6 |  |
 | ✅ | COALESCE / NULLIF | 1 |  |
 
 ## Joins
 
 | | Feature | Questions | Snowflake nuance |
 |---|---|--:|---|
-| ✅ | Inner join | 19 |  |
+| ✅ | Inner join | 21 |  |
 | ✅ | Left join | 1 |  |
 | ✅ | Right join | 1 |  |
 | ✅ | Full outer join | 1 |  |
@@ -36,23 +36,23 @@
 
 | | Feature | Questions | Snowflake nuance |
 |---|---|--:|---|
-| ✅ | GROUP BY | 33 |  |
+| ✅ | GROUP BY | 36 |  |
 | ✅ | HAVING | 2 |  |
-| ✅ | Aggregate functions | 39 |  |
+| ✅ | Aggregate functions | 42 |  |
 | ✅ | Conditional aggregation (FILTER / CASE) | 4 | ⚠️ FILTER(WHERE …) works in both; Snowflake also uses SUM(CASE …) |
-| ✅ | GROUP BY ROLLUP | 1 |  |
+| ✅ | GROUP BY ROLLUP | 2 |  |
 | ✅ | GROUP BY CUBE | 1 |  |
 | ✅ | GROUPING SETS | 1 |  |
-| ☐ | GROUPING() function | 0 |  |
+| ✅ | GROUPING() function | 1 |  |
 | ✅ | PIVOT / UNPIVOT | 1 |  |
 
 ## Subqueries & CTEs
 
 | | Feature | Questions | Snowflake nuance |
 |---|---|--:|---|
-| ✅ | Subquery | 14 |  |
-| ✅ | CTE (WITH) | 7 |  |
-| ☐ | Recursive CTE | 0 | ⚠️ Snowflake: WITH RECURSIVE or CONNECT BY |
+| ✅ | Subquery | 15 |  |
+| ✅ | CTE (WITH) | 8 |  |
+| ✅ | Recursive CTE | 1 | ⚠️ Snowflake: WITH RECURSIVE or CONNECT BY |
 
 ## Window functions
 
@@ -71,8 +71,8 @@
 
 | | Feature | Questions | Snowflake nuance |
 |---|---|--:|---|
-| ✅ | LIKE / ILIKE | 1 |  |
-| ☐ | SUBSTRING / SPLIT / string funcs | 0 |  |
+| ✅ | LIKE / ILIKE | 2 |  |
+| ✅ | SUBSTRING / string funcs (UPPER, LENGTH, …) | 1 |  |
 | ☐ | Regex match | 0 | ⚠️ Snowflake: REGEXP_LIKE / RLIKE |
 | ☐ | Regex extract | 0 | ⚠️ Snowflake: REGEXP_SUBSTR |
 | ☐ | Regex extract all | 0 | ⚠️ Snowflake: REGEXP_SUBSTR_ALL / REGEXP_SUBSTR(…, e) |
@@ -84,7 +84,7 @@
 |---|---|--:|---|
 | ✅ | DATE_TRUNC | 2 |  |
 | ✅ | Date difference | 3 | ⚠️ DuckDB date_diff(part,a,b) vs Snowflake DATEDIFF(part,a,b) |
-| ☐ | EXTRACT / DATE_PART | 0 |  |
+| ✅ | EXTRACT / DATE_PART | 1 |  |
 | ☐ | Interval arithmetic | 0 | ⚠️ Snowflake: DATEADD / + INTERVAL |
 
 ## Semi-structured
@@ -100,20 +100,16 @@
 
 | | Feature | Questions | Snowflake nuance |
 |---|---|--:|---|
-| ✅ | UNION / UNION ALL | 1 |  |
+| ✅ | UNION / UNION ALL | 2 |  |
 | ✅ | EXCEPT / MINUS | 1 | ⚠️ Snowflake: EXCEPT or MINUS |
 | ✅ | INTERSECT | 1 |  |
 
 ## Gaps (0 questions)
 
-- Aggregation & grouping → GROUPING() function
-- Subqueries & CTEs → Recursive CTE
-- Strings & regex → SUBSTRING / SPLIT / string funcs
 - Strings & regex → Regex match
 - Strings & regex → Regex extract
 - Strings & regex → Regex extract all
 - Strings & regex → Regex replace
-- Dates & time → EXTRACT / DATE_PART
 - Dates & time → Interval arithmetic
 - Semi-structured → Array / list functions
 - Semi-structured → Higher-order / lambda

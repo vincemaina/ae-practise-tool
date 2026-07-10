@@ -56,11 +56,15 @@ describe('progress store', () => {
     expect(createProgressStore(storage, clock('2026-06-28T09:00:00Z')).stats().streak).toBe(0);
   });
 
-  it('migrates the legacy solved-id array', () => {
+  it('migrates the legacy solved-id array and persists it to v2', () => {
     const storage = fakeStorage({ 'ae-practice:solved:v1': JSON.stringify(['qa', 'qb']) });
     const s = createProgressStore(storage);
     expect(s.getSolvedIds().sort()).toEqual(['qa', 'qb']);
     expect(s.isSolved('qa')).toBe(true);
+    // migration is written under the v2 key, so it survives losing the legacy key
+    expect(storage.getItem('ae-practice:progress:v2')).toBeTruthy();
+    storage.removeItem('ae-practice:solved:v1');
+    expect(createProgressStore(storage).getSolvedIds().sort()).toEqual(['qa', 'qb']);
   });
 
   it('degrades to a no-op without storage', () => {

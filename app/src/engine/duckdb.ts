@@ -4,7 +4,9 @@ import mvpWorker from '@duckdb/duckdb-wasm/dist/duckdb-browser-mvp.worker.js?url
 import ehWasm from '@duckdb/duckdb-wasm/dist/duckdb-eh.wasm?url';
 import ehWorker from '@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js?url';
 import type { ResultSet } from '../grading/types';
+import type { DialectFilter } from '../content/dialects';
 import { tableToResultSet } from './result-mapping';
+import { toDuckDB } from './transpile';
 
 // Manual bundles so Vite emits the worker + .wasm as assets (ADR 0001/0005).
 // selectBundle prefers `eh` (exception-handling build) when supported, which
@@ -70,10 +72,14 @@ export async function ensureDataset(datasetId: string, setupSql: string): Promis
   });
 }
 
-export async function runQuery(sql: string): Promise<ResultSet> {
+/** Run a query. `dialect` (default 'all' = no translation) transpiles the user's
+ *  SQL from their dialect to DuckDB first (ADR 0006). Transpile happens outside
+ *  the connection queue since it doesn't touch the DB. */
+export async function runQuery(sql: string, dialect: DialectFilter = 'all'): Promise<ResultSet> {
+  const duckSql = await toDuckDB(sql, dialect);
   return serialize(async () => {
     const conn = await getConn();
-    const table = await conn.query(sql);
+    const table = await conn.query(duckSql);
     return tableToResultSet(table);
   });
 }
@@ -87,12 +93,22 @@ export interface SqlError {
 /** Validate a query without surfacing results, for inline error highlighting.
  *  Uses EXPLAIN so it catches parser AND binder errors (unknown columns, etc.)
  *  against the currently-seeded dataset. Returns null when the query is valid. */
-export async function validateSql(sql: string): Promise<SqlError | null> {
+export async function validateSql(
+  sql: string,
+  dialect: DialectFilter = 'all',
+): Promise<SqlError | null> {
   if (!sql.trim()) return null;
+  let duckSql: string;
+  try {
+    duckSql = await toDuckDB(sql, dialect);
+  } catch (e) {
+    // Transpile/parse failure — surface it as the inline error.
+    return { message: (e as Error).message, line: (e as { errorLine?: number }).errorLine };
+  }
   return serialize(async () => {
     const conn = await getConn();
     try {
-      await conn.query(`EXPLAIN ${sql}`);
+      await conn.query(`EXPLAIN ${duckSql}`);
       return null;
     } catch (e) {
       const message = (e as Error)?.message ?? String(e);

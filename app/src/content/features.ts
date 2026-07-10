@@ -82,7 +82,7 @@ export const FEATURES: Feature[] = [
 
   // Strings & regex
   { id: 'like', label: 'LIKE / ILIKE', category: 'Strings & regex', detect: has(/\b(I?LIKE)\b/), snowflake: null },
-  { id: 'substring', label: 'SUBSTRING / SPLIT / string funcs', category: 'Strings & regex', detect: has(/\b(SUBSTR|SUBSTRING|SPLIT_PART|LEFT|RIGHT|TRIM|CONCAT)\s*\(/), snowflake: null },
+  { id: 'substring', label: 'SUBSTRING / string funcs (UPPER, LENGTH, …)', category: 'Strings & regex', detect: has(/\b(SUBSTR|SUBSTRING|SPLIT_PART|TRIM|CONCAT|UPPER|LOWER|LENGTH)\s*\(/), snowflake: null },
   { id: 'regex-match', label: 'Regex match', category: 'Strings & regex', detect: has(/\b(REGEXP_MATCHES|REGEXP_FULL_MATCH)\s*\(|~/), snowflake: 'Snowflake: REGEXP_LIKE / RLIKE' },
   { id: 'regex-extract', label: 'Regex extract', category: 'Strings & regex', detect: has(/\bREGEXP_EXTRACT\s*\(/), snowflake: 'Snowflake: REGEXP_SUBSTR' },
   { id: 'regex-extract-all', label: 'Regex extract all', category: 'Strings & regex', detect: has(/\bREGEXP_EXTRACT_ALL\s*\(/), snowflake: 'Snowflake: REGEXP_SUBSTR_ALL / REGEXP_SUBSTR(…, e)' },

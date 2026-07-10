@@ -46,7 +46,9 @@ export default defineConfig({
     }),
   ],
   optimizeDeps: {
-    exclude: ['@duckdb/duckdb-wasm'],
+    // Both ship their own .wasm loaded via import.meta.url; excluding them from
+    // esbuild pre-bundling keeps that resolution intact (ADR 0001/0006).
+    exclude: ['@duckdb/duckdb-wasm', '@polyglot-sql/sdk'],
   },
   test: {
     // Default to node (pure logic tests); component tests opt into jsdom via

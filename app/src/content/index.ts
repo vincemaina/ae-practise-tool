@@ -3,11 +3,13 @@ import type { QuestionMetrics } from './metrics';
 import { conceptsOf, CONCEPT_ORDER } from './metrics';
 import { questionMetadata } from './question-metadata.generated';
 export { paths, type LearningPath } from './paths';
+export { DIALECT_OPTIONS, matchesDialect, type DialectFilter } from './dialects';
 import { ecommerce } from './datasets/ecommerce';
 import { events } from './datasets/events';
 import { subscriptions } from './datasets/subscriptions';
 import { marketing } from './datasets/marketing';
 import { apiLogs } from './datasets/api-logs';
+import { org } from './datasets/org';
 
 // Easy
 import { ordersByStatus } from './questions/orders-by-status';
@@ -73,6 +75,15 @@ import { firstLastOrderAmount } from './questions/first-last-order-amount';
 import { movingAvgRevenue } from './questions/moving-avg-revenue';
 // Advanced: strings
 import { likeNamedCustomers } from './questions/like-named-customers';
+// General-SQL quick wins (ANSI, cross-dialect)
+import { orgHeadcountByLevel } from './questions/org-headcount-by-level';
+import { rollupCategoryTotalLabel } from './questions/rollup-category-total-label';
+import { completedOrdersByMonth } from './questions/completed-orders-by-month';
+import { customerNameFormat } from './questions/customer-name-format';
+// Snowflake showcase (written in Snowflake, transpiled to run — ADR 0006)
+import { sfProductTier } from './questions/sf-product-tier';
+import { sfCustomerNumber } from './questions/sf-customer-number';
+import { sfTopProducts } from './questions/sf-top-products';
 
 export const datasets: Record<string, Dataset> = {
   [ecommerce.id]: ecommerce,
@@ -80,6 +91,7 @@ export const datasets: Record<string, Dataset> = {
   [subscriptions.id]: subscriptions,
   [marketing.id]: marketing,
   [apiLogs.id]: apiLogs,
+  [org.id]: org,
 };
 
 // Ordered easy → hard so the default list reads as a learning path.
@@ -145,6 +157,15 @@ export const questions: Question[] = [
   movingAvgRevenue,
   // Advanced: strings
   likeNamedCustomers,
+  // General-SQL quick wins
+  orgHeadcountByLevel,
+  rollupCategoryTotalLabel,
+  completedOrdersByMonth,
+  customerNameFormat,
+  // Snowflake showcase
+  sfProductTier,
+  sfCustomerNumber,
+  sfTopProducts,
 ];
 
 const DIFF_RANK: Record<Difficulty, number> = { easy: 0, medium: 1, hard: 2 };
@@ -154,17 +175,22 @@ const DIFF_RANK: Record<Difficulty, number> = { easy: 0, medium: 1, hard: 2 };
  * otherwise target the user's least-practiced concept at the easiest unsolved
  * level. Returns null when everything is solved.
  */
-export function recommendNext(solvedIds: string[], reviewIds: string[]): string | null {
+export function recommendNext(
+  solvedIds: string[],
+  reviewIds: string[],
+  pool: Question[] = questions,
+): string | null {
   const solved = new Set(solvedIds);
+  const inPool = new Set(pool.map((q) => q.id));
 
   const review = reviewIds
-    .filter((id) => !solved.has(id))
-    .map((id) => questions.find((q) => q.id === id))
+    .filter((id) => !solved.has(id) && inPool.has(id))
+    .map((id) => pool.find((q) => q.id === id))
     .filter((q): q is Question => Boolean(q))
     .sort((a, b) => DIFF_RANK[a.difficulty] - DIFF_RANK[b.difficulty]);
   if (review[0]) return review[0].id;
 
-  const unsolved = questions.filter((q) => !solved.has(q.id));
+  const unsolved = pool.filter((q) => !solved.has(q.id));
   if (unsolved.length === 0) return null;
 
   const conceptSolved: Record<string, number> = {};
@@ -173,7 +199,9 @@ export function recommendNext(solvedIds: string[], reviewIds: string[]): string 
   }
   const weakness = (q: Question) => {
     const cs = questionConcepts(q.id);
-    return cs.length ? Math.min(...cs.map((c) => conceptSolved[c] ?? 0)) : 0;
+    // No concepts (basic questions) → treat as "not weak" so they sort last,
+    // rather than tying at 0 and perpetually leading the recommendation.
+    return cs.length ? Math.min(...cs.map((c) => conceptSolved[c] ?? 0)) : Infinity;
   };
   const sorted = [...unsolved].sort(
     (a, b) => weakness(a) - weakness(b) || DIFF_RANK[a.difficulty] - DIFF_RANK[b.difficulty],

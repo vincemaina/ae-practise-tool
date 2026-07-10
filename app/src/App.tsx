@@ -1,5 +1,11 @@
-import { useEffect, useState } from 'react';
-import { questions, recommendNext } from './content';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  questions,
+  recommendNext,
+  matchesDialect,
+  DIALECT_OPTIONS,
+  type DialectFilter,
+} from './content';
 import { ProblemList } from './components/ProblemList';
 import { SolveView } from './components/SolveView';
 import { TopBar } from './components/TopBar';
@@ -11,6 +17,7 @@ import { FeedbackWidget } from './dev/FeedbackWidget';
 
 const progress = createProgressStore();
 const NAME_KEY = 'ae-practice:name';
+const DIALECT_KEY = 'ae-practice:dialect';
 
 function readName(): string | null {
   try {
@@ -18,6 +25,16 @@ function readName(): string | null {
   } catch {
     return null;
   }
+}
+
+function readDialect(): DialectFilter {
+  try {
+    const v = localStorage.getItem(DIALECT_KEY);
+    if (v && DIALECT_OPTIONS.some((d) => d.id === v)) return v as DialectFilter;
+  } catch {
+    /* ignore */
+  }
+  return 'all';
 }
 
 export default function App() {
@@ -28,6 +45,17 @@ export default function App() {
   const [streak, setStreak] = useState<number>(() => progress.stats().streak);
   const [userName, setUserName] = useState<string | null>(readName);
   const user = userName ? { name: userName } : null;
+
+  const [dialect, setDialectState] = useState<DialectFilter>(readDialect);
+  const dialectQuestions = useMemo(() => questions.filter((q) => matchesDialect(q, dialect)), [dialect]);
+  function setDialect(d: DialectFilter) {
+    try {
+      localStorage.setItem(DIALECT_KEY, d);
+    } catch {
+      /* ignore */
+    }
+    setDialectState(d);
+  }
 
   function signIn(name: string) {
     try {
@@ -67,11 +95,19 @@ export default function App() {
     setStreak(progress.stats().streak);
   }
 
-  const idx = question ? questions.findIndex((q) => q.id === question.id) : -1;
-  const at = (i: number) => questions[((i % questions.length) + questions.length) % questions.length]!;
+  // Prev/next/shuffle move within the selected dialect's questions (falling back
+  // to the full set if the current question is filtered out).
+  const navPool = dialectQuestions.length ? dialectQuestions : questions;
+  const poolIdx = question ? navPool.findIndex((q) => q.id === question.id) : -1;
+  // -1 (not 0) when the open question is outside the dialect pool, so Next lands
+  // on navPool[0] rather than skipping it.
+  const base = poolIdx;
+  const at = (i: number) => navPool[((i % navPool.length) + navPool.length) % navPool.length]!;
+
+  const dialectSolved = solvedIds.filter((id) => dialectQuestions.some((q) => q.id === id));
 
   function goNextRecommended() {
-    const recId = recommendNext(progress.getSolvedIds(), progress.getReviewIds());
+    const recId = recommendNext(progress.getSolvedIds(), progress.getReviewIds(), dialectQuestions);
     const rec = recId ? questions.find((q) => q.id === recId) : null;
     if (rec) open(rec.slug);
     else home();
@@ -80,8 +116,8 @@ export default function App() {
   return (
     <div className="app">
       <TopBar
-        solved={solvedIds.length}
-        total={questions.length}
+        solved={dialectSolved.length}
+        total={dialectQuestions.length}
         streak={streak}
         theme={theme}
         onToggleTheme={toggle}
@@ -90,9 +126,9 @@ export default function App() {
           question
             ? {
                 onBack: home,
-                onPrev: () => open(at(idx - 1).slug),
-                onNext: () => open(at(idx + 1).slug),
-                onShuffle: () => open(at(Math.floor(Math.random() * questions.length)).slug),
+                onPrev: () => open(at(base - 1).slug),
+                onNext: () => open(at(base + 1).slug),
+                onShuffle: () => open(at(Math.floor(Math.random() * navPool.length)).slug),
               }
             : null
         }
@@ -106,9 +142,16 @@ export default function App() {
           onAttempt={handleAttempt}
           onNext={goNextRecommended}
           dark={theme === 'dark'}
+          dialect={dialect}
         />
       ) : (
-        <ProblemList solvedIds={solvedIds} reviewIds={reviewIds} onOpen={open} />
+        <ProblemList
+          solvedIds={solvedIds}
+          reviewIds={reviewIds}
+          onOpen={open}
+          dialect={dialect}
+          onDialect={setDialect}
+        />
       )}
       {import.meta.env.DEV && (
         <FeedbackWidget questionId={question?.id ?? null} questionSlug={question?.slug ?? null} />

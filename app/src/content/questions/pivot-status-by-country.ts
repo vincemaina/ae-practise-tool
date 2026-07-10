@@ -10,7 +10,7 @@ export const pivotStatusByCountry: Question = {
     'completed, cancelled, refunded (in that order). Order by country.',
   difficulty: 'hard',
   packs: ['Grouping Sets & Rollups'],
-  dialects: ['generic'],
+  dialects: ['snowflake', 'bigquery', 'sqlserver'],
   datasetId: 'ecommerce',
   canonical: {
     generic: `

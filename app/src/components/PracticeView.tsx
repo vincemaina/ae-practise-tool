@@ -3,6 +3,7 @@ import type { SQLNamespace } from '@codemirror/lang-sql';
 import confetti from 'canvas-confetti';
 import { getDataset, getMetrics } from '../content';
 import { metricTags } from '../content/metrics';
+import { DIALECT_OPTIONS, type DialectFilter } from '../content/dialects';
 import { logEvent } from '../dev/telemetry';
 import type { Question } from '../content/types';
 import { ensureDataset, runQuery, validateSql } from '../engine/duckdb';
@@ -45,12 +46,27 @@ export function PracticeView({
   onAttempt,
   onNext,
   dark,
+  dialect,
 }: {
   question: Question;
   onAttempt: (id: string, correct: boolean) => void;
   onNext: () => void;
   dark: boolean;
+  dialect: DialectFilter;
 }) {
+  // Which dialect the user writes in (transpiled to DuckDB before running, ADR 0006):
+  //  - a dialect-specific question (not tagged 'generic') is always written in its
+  //    dialect — honour the user's pick if it's one the question supports, else the first;
+  //  - a portable question uses the user's selected dialect ('all' → generic).
+  const qDialects = question.dialects;
+  const writingDialect: DialectFilter = qDialects.includes('generic')
+    ? dialect === 'all'
+      ? 'generic'
+      : dialect
+    : dialect !== 'all' && qDialects.includes(dialect as (typeof qDialects)[number])
+      ? dialect
+      : qDialects[0]!;
+  const dialectLabel = DIALECT_OPTIONS.find((d) => d.id === writingDialect)?.label ?? 'Standard SQL';
   const dataset = getDataset(question.datasetId);
   const canonicalSql = dedent(question.canonical.generic ?? '');
   const isDebug = question.challengeType === 'debug';
@@ -117,7 +133,7 @@ export function PracticeView({
     setBusy(true);
     setDrawerOpen(true);
     try {
-      const rs = await runQuery(q);
+      const rs = await runQuery(q, writingDialect);
       setResults(rs);
       logEvent('run', { questionId: question.id, detail: { ok: true, rows: rs.rows.length } });
     } catch (e) {
@@ -136,7 +152,7 @@ export function PracticeView({
     setDrawerOpen(true);
     try {
       const exp = await getExpected();
-      const got = await runQuery(queryToRun);
+      const got = await runQuery(queryToRun, writingDialect);
       setResults(got);
       const result = grade(exp, got, question.grading);
       setVerdict(result);
@@ -151,6 +167,7 @@ export function PracticeView({
       }
     } catch (e) {
       setVerdict(null);
+      setResults(null); // don't leave a previous Run's results under the error
       setError(String(e));
       logEvent('submit', { questionId: question.id, detail: { error: String(e) } });
     } finally {
@@ -249,6 +266,15 @@ export function PracticeView({
             Reveal solution
           </button>
           <span className="toolbar-right">
+            {writingDialect !== 'generic' && (
+              <span
+                className="dialect-chip"
+                data-testid="dialect-chip"
+                title={`Write ${dialectLabel} — it's translated to run on the engine`}
+              >
+                {dialectLabel}
+              </span>
+            )}
             <span
               className={`timer ${seconds >= 600 ? 'danger' : seconds >= 300 ? 'warn' : ''}`}
               data-testid="timer"
@@ -277,7 +303,7 @@ export function PracticeView({
             }}
             schema={schema}
             readOnly={!ready || busy}
-            validate={ready ? validateSql : undefined}
+            validate={ready ? (s) => validateSql(s, writingDialect) : undefined}
             placeholder={ready ? 'Write SQL here… run multiple queries; ⌘/Ctrl+Enter runs the one at your cursor.' : 'Loading SQL engine…'}
             dark={dark}
           />

@@ -57,4 +57,11 @@ export const questionMetadata: Record<string, QuestionMetrics> = {
   "q-first-last-order-amount": {"tables":["customers","orders"],"tableCount":2,"joins":1,"windowFunctions":2,"ctes":0,"aggregates":0,"subqueries":0,"groupBy":false,"orderBy":true,"distinct":true},
   "q-moving-avg-revenue": {"tables":["orders"],"tableCount":1,"joins":0,"windowFunctions":1,"ctes":1,"aggregates":1,"subqueries":0,"groupBy":true,"orderBy":true,"distinct":false},
   "q-like-named-customers": {"tables":["customers"],"tableCount":1,"joins":0,"windowFunctions":0,"ctes":0,"aggregates":0,"subqueries":0,"groupBy":false,"orderBy":true,"distinct":false},
+  "q-org-headcount-by-level": {"tables":["employees"],"tableCount":1,"joins":1,"windowFunctions":0,"ctes":1,"aggregates":1,"subqueries":0,"groupBy":true,"orderBy":true,"distinct":false},
+  "q-rollup-category-total-label": {"tables":["order_items","orders","products"],"tableCount":3,"joins":2,"windowFunctions":0,"ctes":0,"aggregates":1,"subqueries":0,"groupBy":true,"orderBy":true,"distinct":false},
+  "q-completed-orders-by-month": {"tables":["orders"],"tableCount":1,"joins":0,"windowFunctions":0,"ctes":0,"aggregates":1,"subqueries":0,"groupBy":true,"orderBy":true,"distinct":false},
+  "q-customer-name-format": {"tables":["customers"],"tableCount":1,"joins":0,"windowFunctions":0,"ctes":0,"aggregates":0,"subqueries":0,"groupBy":false,"orderBy":true,"distinct":false},
+  "q-sf-product-tier": {"tables":["products"],"tableCount":1,"joins":0,"windowFunctions":0,"ctes":0,"aggregates":0,"subqueries":0,"groupBy":false,"orderBy":true,"distinct":false},
+  "q-sf-customer-number": {"tables":["customers"],"tableCount":1,"joins":0,"windowFunctions":0,"ctes":0,"aggregates":0,"subqueries":0,"groupBy":false,"orderBy":true,"distinct":false},
+  "q-sf-top-products": {"tables":["products"],"tableCount":1,"joins":0,"windowFunctions":0,"ctes":0,"aggregates":0,"subqueries":0,"groupBy":false,"orderBy":true,"distinct":false},
 };

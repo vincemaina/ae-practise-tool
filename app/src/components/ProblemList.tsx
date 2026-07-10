@@ -7,21 +7,28 @@ import {
   getDataset,
   questionConcepts,
   recommendNext,
+  matchesDialect,
+  DIALECT_OPTIONS,
+  type DialectFilter,
   paths,
 } from '../content';
 import type { Difficulty, Question } from '../content/types';
 import { DifficultyBadge } from './DifficultyBadge';
 
-/** Problem-browsing page: a "Needs review" shortcut + curated learning tracks up
- *  top, then a filterable table (pack / concept / difficulty / search). */
+/** Problem-browsing page: dialect + "Needs review" + learning tracks up top,
+ *  then a filterable table (pack / concept / difficulty / search). */
 export function ProblemList({
   solvedIds,
   reviewIds,
   onOpen,
+  dialect,
+  onDialect,
 }: {
   solvedIds: string[];
   reviewIds: string[];
   onOpen: (slug: string) => void;
+  dialect: DialectFilter;
+  onDialect: (d: DialectFilter) => void;
 }) {
   const solved = new Set(solvedIds);
   const review = new Set(reviewIds);
@@ -34,13 +41,16 @@ export function ProblemList({
   const isReview = trackId === 'review';
   const track = !isReview && trackId ? (paths.find((p) => p.id === trackId) ?? null) : null;
 
-  const byId = (id: string) => questions.find((q) => q.id === id);
+  // Everything is scoped to the selected dialect first.
+  const forDialect = useMemo(() => questions.filter((q) => matchesDialect(q, dialect)), [dialect]);
+  const byId = (id: string) => forDialect.find((q) => q.id === id);
 
   const base = useMemo<Question[]>(() => {
     if (isReview) return reviewIds.map(byId).filter((q): q is Question => Boolean(q));
     if (track) return track.questionIds.map(byId).filter((q): q is Question => Boolean(q));
-    return questions;
-  }, [isReview, track, reviewIds]);
+    return forDialect;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isReview, track, reviewIds, forDialect]);
 
   const filtered = useMemo(
     () =>
@@ -55,9 +65,13 @@ export function ProblemList({
   );
 
   const title = isReview ? 'Needs review' : track ? track.title : 'Problems';
-  const total = isReview ? reviewIds.length : track ? track.questionIds.length : questions.length;
+  const total = isReview
+    ? base.length
+    : track
+      ? track.questionIds.filter((id) => forDialect.some((q) => q.id === id)).length
+      : forDialect.length;
 
-  const recommendedId = recommendNext(solvedIds, reviewIds);
+  const recommendedId = recommendNext(solvedIds, reviewIds, forDialect);
   const recommended = recommendedId ? byId(recommendedId) : undefined;
 
   return (
@@ -67,6 +81,21 @@ export function ProblemList({
         <span className="muted">
           {filtered.length} of {total}
         </span>
+        <label className="dialect-picker" title="Show questions for your SQL dialect">
+          <span className="muted">Dialect</span>
+          <select
+            value={dialect}
+            onChange={(e) => onDialect(e.target.value as DialectFilter)}
+            aria-label="SQL dialect"
+            data-testid="filter-dialect"
+          >
+            {DIALECT_OPTIONS.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.label}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
 
       {!isReview && !track && recommended && (

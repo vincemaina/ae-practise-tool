@@ -1,7 +1,13 @@
 import type { GradeOptions } from '../grading/grade';
 
-/** MVP ships "generic" only; the type is open for Snowflake/BigQuery later (ADR 0002). */
-export type Dialect = 'generic' | 'snowflake' | 'bigquery';
+/**
+ * A question's `dialects` lists which SQL dialects it's *appropriate for*.
+ * `'generic'` = portable/standard SQL → treated as applicable to every dialect.
+ * Anything else restricts the question to those dialects (e.g. QUALIFY →
+ * snowflake/bigquery). Execution/grading still uses the single `canonical.generic`
+ * reference solution — this tag drives the product's dialect filter, not the engine.
+ */
+export type Dialect = 'generic' | 'postgres' | 'mysql' | 'sqlserver' | 'snowflake' | 'bigquery';
 
 export type Difficulty = 'easy' | 'medium' | 'hard';
 

@@ -9,11 +9,23 @@
  */
 import { createRequire } from 'node:module';
 import * as duckdb from '@duckdb/duckdb-wasm/dist/duckdb-node-blocking.cjs';
+import * as poly from '@polyglot-sql/sdk';
 import { tableToResultSet } from '../src/engine/result-mapping';
 import { grade } from '../src/grading/grade';
 import { questions, getDataset, paths } from '../src/content';
 import { extractMetrics } from '../src/content/metrics';
 import { questionMetadata } from '../src/content/question-metadata.generated';
+import type { Dialect } from '../src/content/types';
+
+// Our dialects → polyglot read-dialect names (mirrors engine/transpile.ts).
+const POLY: Partial<Record<Dialect, string>> = {
+  snowflake: 'snowflake',
+  bigquery: 'bigquery',
+  postgres: 'postgres',
+  mysql: 'mysql',
+  sqlserver: 'tsql',
+};
+await poly.init();
 
 const require = createRequire(import.meta.url);
 
@@ -61,7 +73,7 @@ for (const q of questions) {
     continue;
   }
 
-  check('lists the generic dialect', q.dialects.includes('generic'));
+  check('has at least one dialect tag', q.dialects.length > 0);
 
   // Canonical must run and grade itself as Correct — this doubles as a
   // determinism check (a second run is graded against the first under the
@@ -85,6 +97,25 @@ for (const q of questions) {
     recomputed === JSON.stringify(questionMetadata[q.id]),
     'stale',
   );
+
+  // Per-dialect solutions (e.g. canonical.snowflake) must transpile to DuckDB
+  // and produce the same output as the generic canonical (ADR 0006).
+  for (const [dialect, solution] of Object.entries(q.canonical)) {
+    if (dialect === 'generic' || !solution) continue;
+    const read = POLY[dialect as Dialect];
+    if (!read) continue;
+    const t = poly.transpile(solution.trim(), read, 'duckdb');
+    if (!t.success || !t.sql?.length) {
+      check(`${dialect} solution transpiles`, false, t.error ?? 'no output');
+      continue;
+    }
+    try {
+      const got = runQuery(t.sql.join(';\n'));
+      check(`${dialect} solution transpiles and matches`, grade(expected, got, q.grading).correct);
+    } catch (e) {
+      check(`${dialect} solution runs`, false, String(e).split('\n')[0]);
+    }
+  }
 
   // Debug challenges: the starter must run AND grade as wrong (a real bug to fix).
   if (q.challengeType === 'debug' && q.starterSql) {

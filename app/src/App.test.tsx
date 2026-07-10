@@ -82,6 +82,18 @@ describe('App', () => {
     expect(screen.getByTestId('recommended')).toBeTruthy();
   });
 
+  it('filters questions by SQL dialect (QUALIFY hidden under Postgres)', () => {
+    render(<App />);
+    // q-top-completed-order-per-customer uses QUALIFY → tagged snowflake/bigquery.
+    expect(screen.getByTestId('q-top-completed-order-per-customer')).toBeTruthy();
+    fireEvent.change(screen.getByTestId('filter-dialect'), { target: { value: 'postgres' } });
+    expect(screen.queryByTestId('q-top-completed-order-per-customer')).toBeNull();
+    // a portable question is still there
+    expect(screen.getByTestId('q-orders-by-status')).toBeTruthy();
+    fireEvent.change(screen.getByTestId('filter-dialect'), { target: { value: 'snowflake' } });
+    expect(screen.getByTestId('q-top-completed-order-per-customer')).toBeTruthy();
+  });
+
   it('marks debug challenges with a Debug badge', () => {
     render(<App />);
     fireEvent.click(screen.getByTestId('q-debug-distinct-purchasers'));

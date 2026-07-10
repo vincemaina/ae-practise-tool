@@ -11,7 +11,7 @@ export const topCompletedOrderPerCustomer: Question = {
     '`amount` descending, then `name`.',
   difficulty: 'hard',
   packs: ['Window Functions'],
-  dialects: ['generic'],
+  dialects: ['snowflake', 'bigquery'],
   datasetId: 'ecommerce',
   canonical: {
     generic: `

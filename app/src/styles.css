@@ -1490,3 +1490,26 @@ pre.canonical {
   align-items: flex-start;
   gap: 0.2rem;
 }
+
+/* Dialect picker (problem list head) */
+.dialect-picker {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.dialect-picker select {
+  min-width: 140px;
+}
+
+/* Dialect indicator in the solve toolbar (writing a non-generic dialect) */
+.dialect-chip {
+  font-size: 0.72rem;
+  font-weight: 650;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  white-space: nowrap;
+}

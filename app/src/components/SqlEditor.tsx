@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import { sql, type SQLNamespace } from '@codemirror/lang-sql';
 import { EditorView, keymap } from '@codemirror/view';
+import { Prec } from '@codemirror/state';
 import { linter, lintGutter, type Diagnostic } from '@codemirror/lint';
 import { syntaxTree } from '@codemirror/language';
 import { oneDark } from '@codemirror/theme-one-dark';
@@ -69,16 +70,24 @@ export function SqlEditor({
       sql({ dialect: duckdbDialect, schema, upperCaseKeywords: false }),
       EditorView.lineWrapping,
       activeStatementHighlight(),
-      keymap.of([
-        {
-          key: 'Mod-Enter',
-          run: (view) => {
-            const s = statementForCursor(view.state.doc.toString(), view.state.selection.main.head);
-            if (s) onRunRef.current?.(s.text);
-            return true;
+      // Highest precedence so basicSetup's keymaps (autocomplete/default) can't
+      // shadow ⌘/Ctrl+Enter; preventDefault stops the browser's own handling.
+      Prec.highest(
+        keymap.of([
+          {
+            key: 'Mod-Enter',
+            preventDefault: true,
+            run: (view) => {
+              const s = statementForCursor(
+                view.state.doc.toString(),
+                view.state.selection.main.head,
+              );
+              if (s) onRunRef.current?.(s.text);
+              return true;
+            },
           },
-        },
-      ]),
+        ]),
+      ),
       // Report the statement at the cursor so the Run button runs the same thing.
       EditorView.updateListener.of((u) => {
         if (u.selectionSet || u.docChanged) {

@@ -1,4 +1,5 @@
 import type { Question } from '../content/types';
+import type { DialectFilter } from '../content/dialects';
 import { PracticeView } from './PracticeView';
 
 /** The solve screen wrapper. Back + prev/next/shuffle navigation now lives in
@@ -8,11 +9,13 @@ export function SolveView({
   onAttempt,
   onNext,
   dark,
+  dialect,
 }: {
   question: Question;
   onAttempt: (id: string, correct: boolean) => void;
   onNext: () => void;
   dark: boolean;
+  dialect: DialectFilter;
 }) {
   return (
     <main className="page solve-page">
@@ -22,6 +25,7 @@ export function SolveView({
         onAttempt={onAttempt}
         onNext={onNext}
         dark={dark}
+        dialect={dialect}
       />
     </main>
   );

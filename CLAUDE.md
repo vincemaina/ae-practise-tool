@@ -4,18 +4,28 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Current state
 
-The client-side React + Vite + TypeScript PWA is built and live in `app/` — a working SQL practice tool (DuckDB-Wasm engine, ~33 questions across 5 datasets, output-equivalence grading, worksheet UI, PWA, dev feedback loop). **`app/CLAUDE.md` is the source of truth for the app** — read it for architecture, commands, and conventions. Phases 0–3 are largely done; see `ROADMAP.md` for what's next.
+The client-side React + Vite + TypeScript PWA is built and live in `app/` — a mature SQL practice tool: DuckDB-Wasm engine, **~61 questions across 6 datasets (~1000 rows each)**, 15 packs, output-equivalence grading with result-diff, worksheet editor (statement-at-cursor run), learning tracks + concept/dialect filters, progress/review/streak, adaptive next-question, debug challenges, PWA, a dev feedback loop, and a **Snowflake dialect layer** (write Snowflake SQL → transpiled to DuckDB in-browser via polyglot). **`app/CLAUDE.md` is the source of truth for the app** — read it for architecture, commands, and conventions. Phases 0–4 largely done; `ROADMAP.md` is the live status.
 
 ### Key docs (read these to get oriented)
 - **`app/CLAUDE.md`** — the app's architecture, commands, and working conventions (start here for code work).
-- `ROADMAP.md` — phased plan + current status. The map for what's next.
-- `decisions/` — Architecture Decision Records (engine, dialect, grading, etc.).
-- `docs/dev-container.md` — **run the agent's container with an isolated `node_modules`** (Dockerfile + docker-compose.yml) to avoid host↔container native-binary clobbering.
-- `notes/chatgpt/brainstorm.md` — original product intent · `notes/research/` — research.
+- `ROADMAP.md` — phased plan + live status + idea backlog. The map for what's next.
+- `decisions/` — Architecture Decision Records, all **accepted** (0001 engine · 0002 dialect strategy · 0003 expected-output · 0004 grading · 0005 tooling · 0006 Snowflake transpilation).
+- `COVERAGE.md` — live SQL-feature coverage (`pnpm coverage`); `notes/research/` — research incl. `snowflake-vs-duckdb.md`, `feature-ideas-2026.md`.
+- `docs/dev-container.md` — run the agent's container with an isolated `node_modules` to avoid host↔container native-binary clobbering.
+- `notes/chatgpt/brainstorm.md` — original product intent.
 
 ## Git — leave it to the user (hard rule)
 
 **Never run git state-changing commands on your own** — no commit, push, branch, tag, rebase, merge, or stash. Suggest commit messages or describe the diff if useful, but do not execute. If the user explicitly says "commit this" / "push the branch", treat it as a **one-time** exception for that task only — do not adopt it as a default; wait for the user again next time. (Reason: git history is visible to others and hard to reverse; the user reviews every change before it's recorded.)
+
+## Working environment & agent operating notes
+
+Durable, version-controlled operating knowledge (this replaces the machine-local `~/.claude` memory, which does **not** travel between machines — this repo's `CLAUDE.md`/`ROADMAP.md`/`decisions/`/`notes/` are the source of truth for a fresh session on any PC).
+
+- **Package manager: pnpm via corepack.** `corepack enable && pnpm install` in `app/`. `npm install` fails (a broken `apache-arrow` `bin` entry crashes npm; pnpm only warns). Version pinned via `packageManager` in `app/package.json`.
+- **Native-binding clobber (host↔container shared `node_modules`).** When the repo (incl. `app/node_modules`) is shared between a host and a *different-platform* container, native deps (rolldown/esbuild/better-sqlite3) install platform-specific binaries and clobber each other. Symptom after the other side runs `pnpm install`: `Cannot find native binding` / `Cannot find module '@rolldown/binding-…'` / `ERR_PNPM_UNEXPECTED_STORE` — **only** vitest/vite build/tsx break; `tsc`/`eslint` still pass. **Fix:** `rm -rf node_modules && pnpm install` in `app/` (`CI=1` skips the purge prompt). Durable cure: the container-owned `node_modules` volume in `docs/dev-container.md`. **Note:** if host and container are the **same** arch (e.g. both Linux), this problem disappears.
+- **Verify before "done" — the agent usually can't see the UI.** Headless runs can't drive a browser (no Playwright browser in the sandbox), so **prove work with:** `pnpm typecheck && pnpm lint && pnpm test && pnpm verify:content && pnpm build`. `verify:content` boots the **real DuckDB-Wasm engine** and checks every question end-to-end (grades, determinism, metadata freshness, debug-starters wrong, per-dialect solutions transpile+match) — it's the stand-in for e2e. `App.test.tsx` renders the shell in jsdom (engine mocked). **Purely visual/interactive behavior (layout, keyboard shortcuts) still needs the user to confirm** — say so honestly rather than claiming it works.
+- **Dev feedback loop — check it proactively.** While the user runs `pnpm dev`, the app logs 👍/👎/notes + telemetry (and a **DOM→PNG screenshot** per feedback) to `.dev-data/feedback.sqlite`. Read/manage from the container with Python (no native binding needed): `python3 app/scripts/dev-feedback.py list` (also `events`, `errors`, `stats`) and `… done <id> "what changed"`. **Habit:** run `list` at the start of a session and after the user has been testing; `Read` the 📷 screenshot to see their screen; mark items `done`. This is the primary channel for UI bugs the agent can't see. Mechanics: `app/vite/dev-feedback.ts` (write) + `app/src/dev/` (app side).
 
 ## Working agreement (from the brainstorm — treat as binding)
 
@@ -54,12 +64,14 @@ Core loop: pick dialect/warehouse + question pack → see schema/data + a natura
 
 Do **not** build (until explicitly agreed): the marketing/SEO site, AI explanation mode, authentication, payments, or a full dbt IDE. Design so dbt-style challenges can be added later without a rewrite, but don't build them first.
 
-### Key design decisions to make (open questions)
+### Key design decisions — resolved (see `decisions/`)
 
-- **Browser SQL engine** — candidates: DuckDB-Wasm, sql.js, PGlite. Research and recommend with trade-offs before choosing.
-- **Dialect-specific correctness** — Generic SQL first; Snowflake and BigQuery planned. The selected dialect must affect what counts as valid/correct (e.g. accept Snowflake `QUALIFY` only under Snowflake). Since the app won't execute against real warehouses, this must be simulated pragmatically (dialect constraints, static validation, transpilation, dialect-specific canonical answers).
-- **Grading** — use **output equivalence**, never SQL string matching. Account for column names/order, row order (only when the question requires it), numeric tolerance, nulls, duplicate rows, type differences, and non-determinism.
-- **Content model** — questions/datasets/packs/dialects as structured TypeScript/JSON files, designed so the user can add new questions easily. See the brainstorm for the full proposed question schema (id, slug, difficulty, packs, supported dialects, seed data, expected output, per-dialect canonical solutions, validation rules, etc.).
+These early open questions are now settled; the ADRs are the record:
+- **Browser SQL engine** → DuckDB-Wasm (ADR 0001).
+- **Dialect strategy** → output-equivalence grading + a dialect *filter*; real dialect fidelity via in-browser transpilation, Snowflake first (ADR 0002, ADR 0006).
+- **Grading** → output equivalence (never string matching), with a structured diff (ADR 0004).
+- **Expected output** → computed at runtime from each question's canonical solution (ADR 0003).
+- **Content model** → typed TS files, one per question/dataset; metadata + coverage derived, not hand-authored.
 
 ### Intended repo structure
 
@@ -71,4 +83,4 @@ Avoid the word "modes" in the UI. Prefer: dialect, warehouse, SQL engine, questi
 
 ## Commands
 
-None yet — the Vite project hasn't been scaffolded. Once `app/` exists, document the dev/build/test/lint commands here (and how to run a single test).
+All commands live in `app/` (see `app/CLAUDE.md` for the full list). Core loop: `pnpm dev` · `pnpm typecheck` · `pnpm lint` · `pnpm test` · `pnpm verify:content` (real-engine content check) · `pnpm build`. Content tooling: `pnpm meta:generate` (question metrics) · `pnpm coverage` (SQL-feature coverage → `COVERAGE.md`). Run a single test: `pnpm test <path-substring>`.

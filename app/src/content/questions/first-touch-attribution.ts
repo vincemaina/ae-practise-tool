@@ -10,7 +10,7 @@ export const firstTouchAttribution: Question = {
     'that first-touch channel. Columns: channel, converters. Order by converters desc, then channel.',
   difficulty: 'hard',
   packs: ['Attribution'],
-  dialects: ['generic'],
+  dialects: ['snowflake', 'bigquery'],
   datasetId: 'marketing',
   canonical: {
     generic: `

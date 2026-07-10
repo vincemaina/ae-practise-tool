@@ -35,6 +35,9 @@ interface Data {
 const ymd = (d: Date): string =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
+/** Calendar day before `d` (DST-safe — decrements the date component, not by 24h ms). */
+const prevYmd = (d: Date): string => ymd(new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1));
+
 /**
  * @param storage injectable for tests; defaults to localStorage when available.
  * @param now injectable clock for streak tests.
@@ -55,13 +58,15 @@ export function createProgressStore(
         const parsed = JSON.parse(raw) as Partial<Data>;
         return { questions: parsed.questions ?? {}, streak: parsed.streak ?? { current: 0, longest: 0 } };
       }
-      // One-time migration from the old solved-id array.
+      // One-time migration from the old solved-id array — persist it under the
+      // v2 key so we don't re-parse the legacy array on every read.
       const legacy = store.getItem(LEGACY_KEY);
       if (legacy) {
         const data = empty();
         for (const id of JSON.parse(legacy) as string[]) {
           data.questions[id] = { solved: true, attempts: 1 };
         }
+        write(data);
         return data;
       }
       return empty();
@@ -80,8 +85,7 @@ export function createProgressStore(
 
   const streakAlive = (d: Data): boolean => {
     const today = ymd(now());
-    const yesterday = ymd(new Date(now().getTime() - 86_400_000));
-    return d.streak.lastActiveDay === today || d.streak.lastActiveDay === yesterday;
+    return d.streak.lastActiveDay === today || d.streak.lastActiveDay === prevYmd(now());
   };
 
   return {
@@ -112,8 +116,7 @@ export function createProgressStore(
       // Any attempt counts as an active day for the streak.
       const today = ymd(now());
       if (d.streak.lastActiveDay !== today) {
-        const yesterday = ymd(new Date(now().getTime() - 86_400_000));
-        d.streak.current = d.streak.lastActiveDay === yesterday ? d.streak.current + 1 : 1;
+        d.streak.current = d.streak.lastActiveDay === prevYmd(now()) ? d.streak.current + 1 : 1;
         d.streak.lastActiveDay = today;
         d.streak.longest = Math.max(d.streak.longest, d.streak.current);
       }
