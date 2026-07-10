@@ -1,20 +1,8 @@
 import * as duckdb from '@duckdb/duckdb-wasm';
-import mvpWasm from '@duckdb/duckdb-wasm/dist/duckdb-mvp.wasm?url';
-import mvpWorker from '@duckdb/duckdb-wasm/dist/duckdb-browser-mvp.worker.js?url';
-import ehWasm from '@duckdb/duckdb-wasm/dist/duckdb-eh.wasm?url';
-import ehWorker from '@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js?url';
 import type { ResultSet } from '../grading/types';
 import type { DialectFilter } from '../content/dialects';
 import { tableToResultSet } from './result-mapping';
 import { toDuckDB } from './transpile';
-
-// Manual bundles so Vite emits the worker + .wasm as assets (ADR 0001/0005).
-// selectBundle prefers `eh` (exception-handling build) when supported, which
-// avoids the cross-origin-isolation requirement of the threaded `coi` build.
-const BUNDLES: duckdb.DuckDBBundles = {
-  mvp: { mainModule: mvpWasm, mainWorker: mvpWorker },
-  eh: { mainModule: ehWasm, mainWorker: ehWorker },
-};
 
 let dbPromise: Promise<duckdb.AsyncDuckDB> | null = null;
 let connPromise: Promise<duckdb.AsyncDuckDBConnection> | null = null;
@@ -35,11 +23,22 @@ function serialize<T>(task: () => Promise<T>): Promise<T> {
 async function getDb(): Promise<duckdb.AsyncDuckDB> {
   if (!dbPromise) {
     dbPromise = (async () => {
-      const bundle = await duckdb.selectBundle(BUNDLES);
-      const worker = new Worker(bundle.mainWorker!);
+      // Load DuckDB's wasm + worker from jsDelivr rather than self-hosting them.
+      // The wasm binaries (~33–38 MB) exceed static-host per-asset limits (e.g.
+      // Cloudflare's 25 MiB cap), so we serve only the app shell and pull the
+      // engine from the CDN; the service worker runtime-caches it (see
+      // vite.config.ts) so offline still works after first load. This supersedes
+      // ADR 0001's self-hosted bundles — see that ADR's 2026-07-10 update.
+      const bundle = await duckdb.selectBundle(duckdb.getJsDelivrBundles());
+      // The worker script is cross-origin (jsDelivr), so wrap it in a same-origin
+      // blob that importScripts() it — the standard DuckDB-Wasm CDN pattern.
+      const workerUrl = URL.createObjectURL(
+        new Blob([`importScripts("${bundle.mainWorker!}");`], { type: 'text/javascript' }),
+      );
       const logger = new duckdb.ConsoleLogger(duckdb.LogLevel.WARNING);
-      const db = new duckdb.AsyncDuckDB(logger, worker);
+      const db = new duckdb.AsyncDuckDB(logger, new Worker(workerUrl));
       await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
+      URL.revokeObjectURL(workerUrl);
       return db;
     })();
   }

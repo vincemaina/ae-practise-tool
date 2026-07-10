@@ -49,3 +49,27 @@ The ~8 MB first-load is the real cost. We accept it because it is one-time and c
   - First-load weight (~8 MB gz). Mitigate: service worker precache + Brotli at the CDN; lazy-load the engine after first paint; show a load indicator. Revisit in Phase 4.
   - DuckDB SQL ≠ Snowflake/BigQuery exactly → the **dialect strategy** (next decision) must layer validation/per-dialect canonical answers on top; don't conflate "runs in DuckDB" with "valid Snowflake."
 - **Follow-ups:** confirm Brotli first-load size during scaffolding; verify Web Worker execution keeps the UI responsive; benchmark at realistic data scale (not toy tables) per our practices.
+
+## Update 2026-07-10 — serve the DuckDB wasm from jsDelivr, not self-hosted
+
+Deploying the built app to Cloudflare surfaced a hard limit: Cloudflare caps any
+single static asset at **25 MiB**, but DuckDB-Wasm's binaries are larger
+(`duckdb-mvp.wasm` 37.5 MiB, `duckdb-eh.wasm` 32.7 MiB at v1.32.0). You can't
+split a `.wasm`, so **self-hosting the engine on Cloudflare is impossible**.
+
+Options weighed: (a) load the wasm from **jsDelivr** (`duckdb.getJsDelivrBundles()`);
+(b) host it on **Cloudflare R2** (object storage, no 25 MiB cap); (c) move to a host
+without the limit (GitHub Pages, ~100 MiB/file). **Chose (a)** — smallest change,
+fastest to green, and it offloads the heavy first-load bandwidth to jsDelivr's CDN.
+
+Change: `engine/duckdb.ts` now boots via `getJsDelivrBundles()` + `selectBundle`
+(still prefers the single-threaded `eh` build, so no cross-origin-isolation headers),
+instantiating the cross-origin worker through a same-origin `Blob`/`importScripts`
+shim. The `?url` self-hosted imports are gone, so Vite no longer emits the DuckDB
+wasm into `dist` (the only self-hosted wasm left is polyglot, 17.9 MiB — under the cap).
+
+**Trade-off (supersedes the "one-time, cacheable, self-hosted" framing above):** first
+load now depends on jsDelivr being reachable. The **offline** story still holds — the
+service worker `CacheFirst`-caches the `@duckdb` CDN path (see `vite.config.ts`), so the
+engine works offline after one successful load. If a hard "no third-party origins"
+requirement ever appears, switch to option (b) R2 (self-hosted URLs, same code shape).

@@ -27,15 +27,28 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // App shell (worker chunks are < 2 MB and matched here). The large DuckDB
-        // .wasm files are intentionally NOT precached — see runtimeCaching below.
+        // App shell. Large wasm (DuckDB from the CDN, polyglot self-hosted) is
+        // NOT precached — it's runtime-cached below so the install stays light.
         globPatterns: ['**/*.{js,css,html,svg}'],
         runtimeCaching: [
           {
+            // DuckDB's wasm + worker are served from jsDelivr (too big to host on
+            // Cloudflare). Cache the whole @duckdb CDN path so the engine works
+            // offline after first load.
+            urlPattern: ({ url }) => url.href.startsWith('https://cdn.jsdelivr.net/npm/@duckdb/'),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'duckdb-cdn',
+              expiration: { maxEntries: 8, maxAgeSeconds: 60 * 60 * 24 * 30 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            // Self-hosted wasm (the polyglot Snowflake transpiler).
             urlPattern: ({ url }) => url.pathname.endsWith('.wasm'),
             handler: 'CacheFirst',
             options: {
-              cacheName: 'duckdb-wasm',
+              cacheName: 'app-wasm',
               expiration: { maxEntries: 4, maxAgeSeconds: 60 * 60 * 24 * 30 },
               cacheableResponse: { statuses: [0, 200] },
             },
