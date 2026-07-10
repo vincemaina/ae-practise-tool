@@ -84,6 +84,15 @@ import { customerNameFormat } from './questions/customer-name-format';
 import { sfProductTier } from './questions/sf-product-tier';
 import { sfCustomerNumber } from './questions/sf-customer-number';
 import { sfTopProducts } from './questions/sf-top-products';
+import { sfActiveOrCancelDate } from './questions/sf-active-or-cancel-date';
+import { sfSubscriptionLifetime } from './questions/sf-subscription-lifetime';
+import { sfRenewalDate } from './questions/sf-renewal-date';
+import { sfProductsPerCategory } from './questions/sf-products-per-category';
+import { sfLargestOrderPerCustomer } from './questions/sf-largest-order-per-customer';
+import { sfMedianOrderAmount } from './questions/sf-median-order-amount';
+import { sfJsonAmountPerUser } from './questions/sf-json-amount-per-user';
+import { sfGenericCustomers } from './questions/sf-generic-customers';
+import { sfChurnLabel } from './questions/sf-churn-label';
 
 export const datasets: Record<string, Dataset> = {
   [ecommerce.id]: ecommerce,
@@ -166,6 +175,15 @@ export const questions: Question[] = [
   sfProductTier,
   sfCustomerNumber,
   sfTopProducts,
+  sfActiveOrCancelDate,
+  sfChurnLabel,
+  sfRenewalDate,
+  sfMedianOrderAmount,
+  sfGenericCustomers,
+  sfSubscriptionLifetime,
+  sfProductsPerCategory,
+  sfLargestOrderPerCustomer,
+  sfJsonAmountPerUser,
 ];
 
 const DIFF_RANK: Record<Difficulty, number> = { easy: 0, medium: 1, hard: 2 };

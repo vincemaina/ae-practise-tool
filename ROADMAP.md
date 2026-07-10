@@ -56,7 +56,7 @@ _Goal: a usable tool, not just one question._
 - ✅ **Richer progress + review + streak** — tracks attempts/solved (not just solved), a **"Needs review"** shortcut (attempted-but-unsolved) with a ↻ status mark, and a **daily streak** chip (🔥) in the top bar. Store rewritten (`progress.ts`, migrates the old format) + unit-tested with an injectable clock.
 - ✅ **Tier 2:** **Debugging challenge type** (4 questions: fix-the-broken-query; `challengeType`/`starterSql`, editor pre-fill, 🐞 badge, `verify:content` proves each starter is wrong) · **Adaptive next-question** (`recommendNext` — finish review first, else weakest-concept easiest-unsolved; banner on the list + "Next recommended →" on solve) · **Per-question timer** (ticking, amber/red thresholds, freezes on solve).
 - ✅ **Premium UX pass** — semantic design tokens, light/dark theme (persisted), app shell (top bar + progress + sidebar + split workspace), difficulty badges, redesigned feedback banner + confetti on solve (reduced-motion aware), engine loading state, polished results table, theme-synced editor. Research in `notes/research/premium-ux.md`. jsdom render test added.
-- ⬜ Dialect filter (deferred — only `generic` exists today)
+- ✅ Dialect filter — shipped; the Snowflake dialect is live (write Snowflake SQL, transpiled to DuckDB; ADR 0006). See the "Later" section for depth.
 - ⬜ Session config (ordered/random; difficulty range; multi-pack)
 
 ## Phase 4 — PWA / offline & deploy
@@ -67,7 +67,7 @@ _Goal: installable, offline-capable, hosted._
 - ⏸ Deploy to a static host — **deferred (2026-06-23)**; running locally via `pnpm build && pnpm preview` for now. Host TBD; a subpath deploy (e.g. GitHub project pages) needs Vite `base` set.
 
 ## Later (explicitly deferred — do not build without agreement)
-- ✅ **Snowflake dialect (first cut, ADR 0006)** — write real Snowflake SQL, transpiled to DuckDB in-browser via polyglot (lazy ~4 MB wasm, only when a non-generic dialect is active). Threaded through the solve view; a dialect chip shows what you're writing; transpile errors surface distinctly. 3 Snowflake showcase questions (IFF, REGEXP_SUBSTR, TOP n), each with a `canonical.snowflake` that `verify:content` transpiles + matches. Known edges (follow-ups): `LATERAL FLATTEN`, `TO_VARCHAR`, colon `:field::type` (quote-stripping) don't transpile cleanly yet.
+- ✅ **Snowflake dialect (first cut, ADR 0006)** — write real Snowflake SQL, transpiled to DuckDB in-browser via polyglot (lazy ~4 MB wasm, only when a non-generic dialect is active). Threaded through the solve view; a dialect chip shows what you're writing; transpile errors surface distinctly. **12 Snowflake questions** (IFF, NVL/NVL2, DATEADD/DATEDIFF, LISTAGG, QUALIFY, MEDIAN, REGEXP_SUBSTR, TOP n, TO_VARCHAR, STARTSWITH, numeric colon-JSON), each with a `canonical.snowflake` that `verify:content` transpiles + matches. A small conservative **post-transpile fixup pass** (`fixupDuckDbSql`) rewrites the few constructs polyglot leaves verbatim: `TO_VARCHAR`/`TO_CHAR`→CAST, `STARTSWITH`→`starts_with`. Still-deferred hard edges (`LATERAL FLATTEN`, `TO_VARCHAR(x, fmt)` date formatting, **text** colon `:field::string` quote-stripping, `RATIO_TO_REPORT`) surface as normal transpile/run errors — see ADR 0006's 2026-07-10 update.
 - BigQuery + other dialects (mechanism is general — polyglot supports 30+; just needs content + tags)
 - More advanced/hard questions at depth; sessionisation & semi-structured (JSON) packs; grow the bank
 - dbt-style modelling challenges (ref/source/config/incremental/tests)

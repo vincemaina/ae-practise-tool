@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Current state
 
-The client-side React + Vite + TypeScript PWA is built and live in `app/` — a mature SQL practice tool: DuckDB-Wasm engine, **~61 questions across 6 datasets (~1000 rows each)**, 15 packs, output-equivalence grading with result-diff, worksheet editor (statement-at-cursor run), learning tracks + concept/dialect filters, progress/review/streak, adaptive next-question, debug challenges, PWA, a dev feedback loop, and a **Snowflake dialect layer** (write Snowflake SQL → transpiled to DuckDB in-browser via polyglot). **`app/CLAUDE.md` is the source of truth for the app** — read it for architecture, commands, and conventions. Phases 0–4 largely done; `ROADMAP.md` is the live status.
+The client-side React + Vite + TypeScript PWA is built and live in `app/` — a mature SQL practice tool: DuckDB-Wasm engine, **~70 questions across 6 datasets (~1000 rows each)**, 15+ packs, output-equivalence grading with result-diff, worksheet editor (statement-at-cursor run), learning tracks + concept/dialect filters, progress/review/streak, adaptive next-question, debug challenges, PWA, a dev feedback loop, and a **Snowflake dialect layer** (write Snowflake SQL → transpiled to DuckDB in-browser via polyglot). **`app/CLAUDE.md` is the source of truth for the app** — read it for architecture, commands, and conventions. Phases 0–4 largely done; `ROADMAP.md` is the live status.
 
 ### Key docs (read these to get oriented)
 - **`app/CLAUDE.md`** — the app's architecture, commands, and working conventions (start here for code work).

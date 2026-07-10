@@ -64,4 +64,13 @@ export const questionMetadata: Record<string, QuestionMetrics> = {
   "q-sf-product-tier": {"tables":["products"],"tableCount":1,"joins":0,"windowFunctions":0,"ctes":0,"aggregates":0,"subqueries":0,"groupBy":false,"orderBy":true,"distinct":false},
   "q-sf-customer-number": {"tables":["customers"],"tableCount":1,"joins":0,"windowFunctions":0,"ctes":0,"aggregates":0,"subqueries":0,"groupBy":false,"orderBy":true,"distinct":false},
   "q-sf-top-products": {"tables":["products"],"tableCount":1,"joins":0,"windowFunctions":0,"ctes":0,"aggregates":0,"subqueries":0,"groupBy":false,"orderBy":true,"distinct":false},
+  "q-sf-active-or-cancel-date": {"tables":["subscriptions"],"tableCount":1,"joins":0,"windowFunctions":0,"ctes":0,"aggregates":0,"subqueries":0,"groupBy":false,"orderBy":true,"distinct":false},
+  "q-sf-churn-label": {"tables":["subscriptions"],"tableCount":1,"joins":0,"windowFunctions":0,"ctes":0,"aggregates":0,"subqueries":0,"groupBy":false,"orderBy":true,"distinct":false},
+  "q-sf-renewal-date": {"tables":["subscriptions"],"tableCount":1,"joins":0,"windowFunctions":0,"ctes":0,"aggregates":0,"subqueries":0,"groupBy":false,"orderBy":true,"distinct":false},
+  "q-sf-median-order-amount": {"tables":["orders"],"tableCount":1,"joins":0,"windowFunctions":0,"ctes":0,"aggregates":1,"subqueries":0,"groupBy":true,"orderBy":true,"distinct":false},
+  "q-sf-generic-customers": {"tables":["customers"],"tableCount":1,"joins":0,"windowFunctions":0,"ctes":0,"aggregates":0,"subqueries":0,"groupBy":false,"orderBy":true,"distinct":false},
+  "q-sf-subscription-lifetime": {"tables":["subscriptions"],"tableCount":1,"joins":0,"windowFunctions":0,"ctes":0,"aggregates":0,"subqueries":0,"groupBy":false,"orderBy":true,"distinct":false},
+  "q-sf-products-per-category": {"tables":["products"],"tableCount":1,"joins":0,"windowFunctions":0,"ctes":0,"aggregates":1,"subqueries":0,"groupBy":true,"orderBy":true,"distinct":false},
+  "q-sf-largest-order-per-customer": {"tables":["orders"],"tableCount":1,"joins":0,"windowFunctions":1,"ctes":0,"aggregates":0,"subqueries":1,"groupBy":false,"orderBy":true,"distinct":false},
+  "q-sf-json-amount-per-user": {"tables":["api_logs"],"tableCount":1,"joins":0,"windowFunctions":0,"ctes":0,"aggregates":1,"subqueries":0,"groupBy":true,"orderBy":true,"distinct":false},
 };

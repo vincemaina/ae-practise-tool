@@ -11,6 +11,7 @@ import { createRequire } from 'node:module';
 import * as duckdb from '@duckdb/duckdb-wasm/dist/duckdb-node-blocking.cjs';
 import * as poly from '@polyglot-sql/sdk';
 import { tableToResultSet } from '../src/engine/result-mapping';
+import { fixupDuckDbSql } from '../src/engine/transpile';
 import { grade } from '../src/grading/grade';
 import { questions, getDataset, paths } from '../src/content';
 import { extractMetrics } from '../src/content/metrics';
@@ -110,7 +111,7 @@ for (const q of questions) {
       continue;
     }
     try {
-      const got = runQuery(t.sql.join(';\n'));
+      const got = runQuery(fixupDuckDbSql(t.sql.join(';\n')));
       check(`${dialect} solution transpiles and matches`, grade(expected, got, q.grading).correct);
     } catch (e) {
       check(`${dialect} solution runs`, false, String(e).split('\n')[0]);

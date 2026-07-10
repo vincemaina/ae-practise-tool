@@ -29,3 +29,17 @@ Adopt **A**: a transpile layer using polyglot. When the active dialect ≠ gener
   - **~4 MB gz lazy payload** on first Snowflake use. Acceptable (one-time, cached; only for opted-in dialect users).
   - **Grading correctness depends on transpile correctness.** A wrong transpile could mis-grade. Mitigate: the authoring/verify harness can transpile each Snowflake question's *own* Snowflake-authored solution and confirm it matches the canonical output.
 - **Follow-ups:** thread the active dialect into the solve view/engine; lazy-load polyglot; graceful transpile errors; author Snowflake showcase questions; extend `verify:content` to check Snowflake solutions transpile+match.
+
+## Update 2026-07-10 — a small post-transpile fixup pass
+
+Re-probed the 34 most common Snowflake constructs through the **actual** transpile→execute path (not just transpile). **28/34 run end-to-end today**, and the ADR's feared colon-JSON access now transpiles *and runs*. Six still fail — but three are trivial spelling gaps polyglot passes through verbatim, so `fixupDuckDbSql` (in `engine/transpile.ts`, applied after polyglot in both `toDuckDB` and `verify:content`) rewrites them:
+- `TO_VARCHAR(x)` / `TO_CHAR(x)` (1-arg) → `CAST(x AS VARCHAR)`
+- `STARTSWITH(a, b)` → `starts_with(a, b)`
+
+The pass is a conservative, balanced-paren, unit-tested string rewrite (`transpile.test.ts`) — safe on any dialect's DuckDB output. It intentionally does **not** touch the genuinely hard edges, which stay deferred and surface as normal transpile/run errors:
+- `LATERAL FLATTEN` — Snowflake's 6-column FLATTEN doesn't map onto DuckDB `UNNEST`.
+- `TO_VARCHAR(x, fmt)` date formatting — needs a Snowflake→`strftime` format-token map.
+- `col:field::string` **text** colon access — polyglot emits `CAST(… -> 'path' AS TEXT)`, which keeps JSON quotes (should be `->>`). Numeric colon casts (`::int`/`::decimal`) are unaffected and used by the JSON showcase question.
+- `RATIO_TO_REPORT` — no DuckDB equivalent function.
+
+This shipped alongside a Snowflake pack grown from 3 → 12 questions (NVL/NVL2, DATEADD/DATEDIFF, LISTAGG, QUALIFY, MEDIAN, numeric colon-JSON, plus the two fixup-unlocked functions), each machine-verified transpile+match by `verify:content`.
