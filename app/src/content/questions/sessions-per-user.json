@@ -1,0 +1,45 @@
+{
+  "$schema": "../question.schema.json",
+  "id": "q-sessions-per-user",
+  "slug": "sessions-per-user",
+  "title": "Sessionise the event stream",
+  "prompt": "Group each user’s events into sessions: a new session starts whenever the gap since their previous event is more than 30 minutes. Return each user_id and their number of sessions, ordered by user_id. (A user’s first event always starts a session.)",
+  "difficulty": "hard",
+  "packs": [
+    "Sessionisation",
+    "Window Functions"
+  ],
+  "dialects": [
+    "generic"
+  ],
+  "datasetId": "events",
+  "order": 30,
+  "canonical": {
+    "generic": [
+      "WITH flagged AS (",
+      "  SELECT user_id,",
+      "         CASE",
+      "           WHEN date_diff(",
+      "                  'minute',",
+      "                  LAG(event_at) OVER (PARTITION BY user_id ORDER BY event_at, event_id),",
+      "                  event_at",
+      "                ) > 30",
+      "             OR LAG(event_at) OVER (PARTITION BY user_id ORDER BY event_at, event_id) IS NULL",
+      "           THEN 1 ELSE 0",
+      "         END AS is_new_session",
+      "  FROM events",
+      ")",
+      "SELECT user_id, SUM(is_new_session) AS sessions",
+      "FROM flagged",
+      "GROUP BY user_id",
+      "ORDER BY user_id"
+    ]
+  },
+  "grading": {
+    "orderMatters": true
+  },
+  "hints": [
+    "Use LAG(event_at) per user (ordered by time) to get the previous event time.",
+    "Flag a new session when the gap > 30 minutes OR there is no previous event, then SUM the flags."
+  ]
+}

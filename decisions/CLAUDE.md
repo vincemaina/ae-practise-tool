@@ -11,5 +11,7 @@ Each record: **Status** (proposed / accepted / superseded) · **Context** · **O
 - `0004-grading-algorithm.md` — output-equivalence comparator. **Accepted: positional columns, multiset rows (order-insensitive unless `orderMatters`), value/type-family normalisation, per-question flags.**
 - `0005-tooling.md` — project setup. **Accepted: pnpm + Vite + TS strict + Vitest + Playwright + ESLint/Prettier** (confirmed at scaffold time).
 - `0006-snowflake-dialect-transpilation.md` — write real Snowflake SQL, transpiled to DuckDB in-browser via polyglot. **Accepted: best-effort transpile + a small conservative post-transpile fixup pass** (`TO_VARCHAR`/`TO_CHAR`→CAST, `STARTSWITH`→`starts_with`); hard edges (`FLATTEN`, format strings, text colon access, `RATIO_TO_REPORT`) deferred.
+- `0007-learn-mode-flashcards.md` — a second "Learn" pillar. **Accepted: top-bar Practice|Learn tabs + Leitner spaced repetition; dbt deck first; shared streak.**
+- `0008-json-content-authoring.md` — how questions are authored, for open-source contribution. **Accepted: JSON files, auto-discovered + Zod-validated + generated JSON Schema; CI runs `verify:content` as the trust gate.**
 
-_Phase 0 design decisions (0001–0005) complete; 0006 is a Phase-"Later" dialect follow-up. See ROADMAP._
+_Phase 0 design decisions (0001–0005) complete; 0006/0007/0008 are later feature/authoring follow-ups. See ROADMAP._

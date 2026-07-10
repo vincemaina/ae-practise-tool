@@ -1,0 +1,164 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "id": {
+      "type": "string"
+    },
+    "slug": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "prompt": {
+      "type": "string"
+    },
+    "difficulty": {
+      "type": "string",
+      "enum": [
+        "easy",
+        "medium",
+        "hard"
+      ]
+    },
+    "packs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "dialects": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "generic",
+          "postgres",
+          "mysql",
+          "sqlserver",
+          "snowflake",
+          "bigquery"
+        ]
+      }
+    },
+    "datasetId": {
+      "type": "string"
+    },
+    "order": {
+      "type": "number"
+    },
+    "canonical": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "enum": [
+          "generic",
+          "postgres",
+          "mysql",
+          "sqlserver",
+          "snowflake",
+          "bigquery"
+        ]
+      },
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "grading": {
+      "type": "object",
+      "properties": {
+        "orderMatters": {
+          "type": "boolean"
+        },
+        "requireColumnNames": {
+          "type": "boolean"
+        },
+        "numericTolerance": {
+          "type": "number"
+        },
+        "caseSensitiveText": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "requires": {
+      "type": "object",
+      "properties": {
+        "pattern": {
+          "type": "string"
+        },
+        "flags": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "pattern",
+        "message"
+      ],
+      "additionalProperties": false
+    },
+    "hints": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "challengeType": {
+      "type": "string",
+      "enum": [
+        "write",
+        "debug"
+      ]
+    },
+    "starterSql": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "features": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "id",
+    "slug",
+    "title",
+    "prompt",
+    "difficulty",
+    "packs",
+    "dialects",
+    "datasetId",
+    "canonical"
+  ],
+  "additionalProperties": false
+}

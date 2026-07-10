@@ -1,0 +1,31 @@
+{
+  "$schema": "../question.schema.json",
+  "id": "q-sessions-per-channel",
+  "slug": "sessions-per-channel",
+  "title": "Sessions per channel",
+  "prompt": "Count sessions per channel, most sessions first (break ties by channel name). Columns: channel, sessions.",
+  "difficulty": "easy",
+  "packs": [
+    "Core SQL Foundations"
+  ],
+  "dialects": [
+    "generic"
+  ],
+  "datasetId": "marketing",
+  "order": 8,
+  "canonical": {
+    "generic": [
+      "SELECT channel, COUNT(*) AS sessions",
+      "FROM sessions",
+      "GROUP BY channel",
+      "ORDER BY sessions DESC, channel"
+    ]
+  },
+  "grading": {
+    "orderMatters": true
+  },
+  "hints": [
+    "GROUP BY channel, COUNT(*).",
+    "ORDER BY sessions DESC, channel."
+  ]
+}

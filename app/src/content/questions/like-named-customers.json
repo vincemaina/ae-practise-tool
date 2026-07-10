@@ -1,0 +1,36 @@
+{
+  "$schema": "../question.schema.json",
+  "id": "q-like-named-customers",
+  "slug": "like-named-customers",
+  "title": "Named customers (LIKE)",
+  "prompt": "Most customers have a generic name like \"Customer 12\". Using LIKE, return only the \"named\" customers — those whose name does NOT start with \"Customer \". Single column name, alphabetical.",
+  "difficulty": "easy",
+  "packs": [
+    "Core SQL Foundations"
+  ],
+  "dialects": [
+    "generic"
+  ],
+  "datasetId": "ecommerce",
+  "order": 53,
+  "canonical": {
+    "generic": [
+      "SELECT name",
+      "FROM customers",
+      "WHERE name NOT LIKE 'Customer %'",
+      "ORDER BY name"
+    ]
+  },
+  "grading": {
+    "orderMatters": true
+  },
+  "requires": {
+    "pattern": "\\blike\\b",
+    "flags": "i",
+    "message": "This question is about LIKE — use a LIKE pattern."
+  },
+  "hints": [
+    "LIKE matches patterns; % is any run of characters.",
+    "Exclude the generic names with WHERE name NOT LIKE 'Customer %'."
+  ]
+}

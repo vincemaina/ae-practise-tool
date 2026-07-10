@@ -1,0 +1,31 @@
+{
+  "$schema": "../question.schema.json",
+  "id": "q-cross-join-country-status-grid",
+  "slug": "cross-join-country-status-grid",
+  "title": "Every country × status combination",
+  "prompt": "Produce a reference grid of every possible combination of customer country and order status — including combinations that never actually occur. Use a CROSS JOIN of the distinct countries and distinct statuses. Columns: country, status. Order by country, status.",
+  "difficulty": "medium",
+  "packs": [
+    "Join Types"
+  ],
+  "dialects": [
+    "generic"
+  ],
+  "datasetId": "ecommerce",
+  "order": 40,
+  "canonical": {
+    "generic": [
+      "SELECT co.country, st.status",
+      "FROM (SELECT DISTINCT country FROM customers) AS co",
+      "CROSS JOIN (SELECT DISTINCT status FROM orders) AS st",
+      "ORDER BY co.country, st.status"
+    ]
+  },
+  "grading": {
+    "orderMatters": true
+  },
+  "hints": [
+    "A CROSS JOIN pairs every row of one set with every row of the other.",
+    "Get the distinct countries and distinct statuses as two subqueries, then CROSS JOIN them."
+  ]
+}

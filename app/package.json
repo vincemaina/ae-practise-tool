@@ -17,6 +17,8 @@
     "screenshot": "playwright test screenshots",
     "verify:content": "tsx scripts/verify-content.ts",
     "meta:generate": "tsx scripts/generate-metadata.ts",
+    "schema:generate": "tsx scripts/generate-schema.ts",
+    "new:question": "tsx scripts/new-question.ts",
     "coverage": "tsx scripts/coverage.ts"
   },
   "dependencies": {
@@ -32,7 +34,8 @@
     "canvas-confetti": "^1.9.4",
     "html-to-image": "^1.11.13",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",

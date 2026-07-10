@@ -13,7 +13,7 @@ import * as poly from '@polyglot-sql/sdk';
 import { tableToResultSet } from '../src/engine/result-mapping';
 import { fixupDuckDbSql } from '../src/engine/transpile';
 import { grade } from '../src/grading/grade';
-import { questions, getDataset, paths } from '../src/content';
+import { questions, getDataset, paths } from '../src/content/node';
 import { extractMetrics } from '../src/content/metrics';
 import { questionMetadata } from '../src/content/question-metadata.generated';
 import type { Dialect } from '../src/content/types';

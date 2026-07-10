@@ -71,7 +71,7 @@ These early open questions are now settled; the ADRs are the record:
 - **Dialect strategy** → output-equivalence grading + a dialect *filter*; real dialect fidelity via in-browser transpilation, Snowflake first (ADR 0002, ADR 0006).
 - **Grading** → output equivalence (never string matching), with a structured diff (ADR 0004).
 - **Expected output** → computed at runtime from each question's canonical solution (ADR 0003).
-- **Content model** → typed TS files, one per question/dataset; metadata + coverage derived, not hand-authored.
+- **Content model** → **JSON files, one per question/dataset** (ADR 0008), auto-discovered + Zod-validated; SQL as string or line-array. Metadata + coverage derived, not hand-authored. Contributor-facing: `CONTRIBUTING.md`, `pnpm new:question`, generated JSON Schema, CI runs `verify:content` so bad SQL can't merge.
 
 ### Intended repo structure
 

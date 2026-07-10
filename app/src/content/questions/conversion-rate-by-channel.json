@@ -1,0 +1,33 @@
+{
+  "$schema": "../question.schema.json",
+  "id": "q-conversion-rate-by-channel",
+  "slug": "conversion-rate-by-channel",
+  "title": "Conversion rate by channel",
+  "prompt": "For each channel, compute the conversion rate = converted sessions ÷ total sessions, as a percentage rounded to 1 decimal. Columns: channel, conversion_rate. Order by conversion_rate desc, then channel.",
+  "difficulty": "hard",
+  "packs": [
+    "Attribution"
+  ],
+  "dialects": [
+    "generic"
+  ],
+  "datasetId": "marketing",
+  "order": 25,
+  "canonical": {
+    "generic": [
+      "SELECT channel,",
+      "       ROUND(100.0 * SUM(CASE WHEN converted THEN 1 ELSE 0 END) / COUNT(*), 1)",
+      "         AS conversion_rate",
+      "FROM sessions",
+      "GROUP BY channel",
+      "ORDER BY conversion_rate DESC, channel"
+    ]
+  },
+  "grading": {
+    "orderMatters": true
+  },
+  "hints": [
+    "Numerator: count of converted sessions (SUM(CASE WHEN converted THEN 1 ELSE 0 END)).",
+    "Multiply by 100.0 (not 100) to force decimal division, then ROUND(…, 1)."
+  ]
+}

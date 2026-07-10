@@ -4,7 +4,7 @@
  * per-feature question counts. Run: pnpm coverage
  */
 import { writeFileSync } from 'node:fs';
-import { questions } from '../src/content';
+import { questions } from '../src/content/node';
 import { FEATURES, CATEGORIES } from '../src/content/features';
 
 interface Row {

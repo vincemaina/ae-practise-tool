@@ -1,0 +1,31 @@
+{
+  "$schema": "../question.schema.json",
+  "id": "q-union-merch-or-premium",
+  "slug": "union-merch-or-premium",
+  "title": "Merch or premium products (UNION)",
+  "prompt": "Using UNION, return the names of products that are either in the \"Merch\" category or priced over 100 (or both — no duplicates). Single column name, alphabetical.",
+  "difficulty": "easy",
+  "packs": [
+    "Set Operations"
+  ],
+  "dialects": [
+    "generic"
+  ],
+  "datasetId": "ecommerce",
+  "order": 49,
+  "canonical": {
+    "generic": [
+      "SELECT name FROM products WHERE category = 'Merch'",
+      "UNION",
+      "SELECT name FROM products WHERE price > 100",
+      "ORDER BY name"
+    ]
+  },
+  "grading": {
+    "orderMatters": true
+  },
+  "hints": [
+    "UNION combines both result sets and removes duplicates (UNION ALL would keep them).",
+    "One query for Merch products, one for price > 100."
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "$schema": "../dataset.schema.json",
+  "id": "org",
+  "title": "Org hierarchy",
+  "tables": [
+    {
+      "name": "employees",
+      "columns": [
+        "employee_id",
+        "name",
+        "manager_id",
+        "department",
+        "salary"
+      ]
+    }
+  ],
+  "setupSql": [
+    "CREATE OR REPLACE TABLE employees (",
+    "  employee_id INTEGER,",
+    "  name        VARCHAR,",
+    "  manager_id  INTEGER,",
+    "  department  VARCHAR,",
+    "  salary      INTEGER",
+    ");",
+    "INSERT INTO employees",
+    "  SELECT i,",
+    "         'Employee ' || i,",
+    "         CASE WHEN i = 1 THEN NULL ELSE ((i - 2) / 3) + 1 END,",
+    "         (['Engineering','Sales','Operations','Data'])[(i % 4) + 1],",
+    "         60000 + (i * 137 % 60) * 1000",
+    "  FROM generate_series(1, 121) AS t(i);"
+  ]
+}

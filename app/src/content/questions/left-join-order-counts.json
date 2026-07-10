@@ -1,0 +1,33 @@
+{
+  "$schema": "../question.schema.json",
+  "id": "q-left-join-order-counts",
+  "slug": "left-join-order-counts",
+  "title": "Completed orders per customer (including zero)",
+  "prompt": "Return every customer and their number of **completed** orders — including customers with none (they should show 0, not be dropped). Use a LEFT JOIN. Columns: name, completed_orders. Order by completed_orders descending, then name.",
+  "difficulty": "medium",
+  "packs": [
+    "Join Types"
+  ],
+  "dialects": [
+    "generic"
+  ],
+  "datasetId": "ecommerce",
+  "order": 37,
+  "canonical": {
+    "generic": [
+      "SELECT c.name,",
+      "       COUNT(CASE WHEN o.status = 'completed' THEN 1 END) AS completed_orders",
+      "FROM customers c",
+      "LEFT JOIN orders o ON o.customer_id = c.customer_id",
+      "GROUP BY c.customer_id, c.name",
+      "ORDER BY completed_orders DESC, c.name"
+    ]
+  },
+  "grading": {
+    "orderMatters": true
+  },
+  "hints": [
+    "A plain JOIN would drop customers with no orders — use LEFT JOIN to keep them.",
+    "Count only completed rows: COUNT(CASE WHEN status = 'completed' THEN 1 END)."
+  ]
+}

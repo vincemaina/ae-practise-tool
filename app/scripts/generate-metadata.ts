@@ -7,7 +7,7 @@ import { createRequire } from 'node:module';
 import { writeFileSync } from 'node:fs';
 import * as duckdb from '@duckdb/duckdb-wasm/dist/duckdb-node-blocking.cjs';
 import { extractMetrics } from '../src/content/metrics';
-import { questions } from '../src/content';
+import { questions } from '../src/content/node';
 
 const require = createRequire(import.meta.url);
 const BUNDLES = {

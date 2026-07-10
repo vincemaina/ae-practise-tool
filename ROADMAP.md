@@ -73,6 +73,11 @@ _Goal: installable, offline-capable, hosted._
 - dbt-style modelling challenges (ref/source/config/incremental/tests)
 - AI explanation mode · auth · payments · marketing/SEO site (`web`/`site` folder)
 
+## Open source (2026-07-10) ✅
+- ✅ **JSON content authoring (ADR 0008)** — questions/datasets migrated from typed TS to auto-discovered, Zod-validated **JSON** (all 70 + 6, lossless). Contributors add a file (no code, no registry edit): `pnpm new:question`, generated JSON Schema for editor autocomplete, `CONTRIBUTING.md`.
+- ✅ **OSS hygiene** — MIT `LICENSE`, public `README.md`, GitHub Actions **CI** (`.github/workflows/ci.yml`) running typecheck/lint/test/**verify:content**/build so a contributed question that doesn't run+self-grade can't merge.
+- ⬜ Follow-ups: PR/issue templates, code of conduct; consider moving `content/` above `app/` if non-devs find `app/src/content/` deep.
+
 ### Idea backlog (captured, not scheduled)
 - ✅ **Learning mode / flashcards (shipped 2026-07-10, ADR 0007).** A second **Learn** pillar alongside Practice: top-bar **Practice | Learn** tabs → `#/learn`, spaced-repetition flashcards with **Leitner** scheduling (`src/learn/`, pure + unit-tested), a **dbt fundamentals deck** (~32 web-verified cards: ref/source, materializations, data_tests vs unit tests, incremental, snapshots, commands, Jinja/config). Flip → rate (Again / Got it); reviews feed the **shared daily streak** via `progress.touchStreak()`. Follow-ups: more decks (SQL concepts), SM-2 upgrade, per-deck progress UI — see ADR 0007.
 - **Prioritised feature ideas from a research pass** → [`notes/research/feature-ideas-2026.md`](./notes/research/feature-ideas-2026.md) (result-diff on incorrect, concept filters & learning paths, richer progress/review, debugging challenge type, AI coach, …).
