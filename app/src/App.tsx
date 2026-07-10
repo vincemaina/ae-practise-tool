@@ -9,8 +9,10 @@ import {
 import { ProblemList } from './components/ProblemList';
 import { SolveView } from './components/SolveView';
 import { SessionSetup } from './components/SessionSetup';
+import { LearnView } from './components/LearnView';
 import { TopBar } from './components/TopBar';
 import { createProgressStore } from './storage/progress';
+import { createLearnStore, dbtDeck } from './learn';
 import type { SessionState } from './session/session';
 import { useTheme } from './theme/useTheme';
 import { useRoute } from './route/useRoute';
@@ -18,6 +20,7 @@ import { installTelemetry, logEvent } from './dev/telemetry';
 import { FeedbackWidget } from './dev/FeedbackWidget';
 
 const progress = createProgressStore();
+const learn = createLearnStore();
 const NAME_KEY = 'ae-practice:name';
 const DIALECT_KEY = 'ae-practice:dialect';
 const SESSION_KEY = 'ae-practice:session';
@@ -119,6 +122,14 @@ export default function App() {
     if (session) setSession(null);
     navigate('/');
   };
+  const goLearn = () => {
+    if (session) setSession(null);
+    navigate('/learn');
+  };
+  function onCardReview() {
+    progress.touchStreak();
+    setStreak(progress.stats().streak);
+  }
   const openById = (id: string) => {
     const q = questions.find((x) => x.id === id);
     if (q) open(q.slug);
@@ -167,6 +178,7 @@ export default function App() {
   }
 
   const isSessionSetup = path === '/session';
+  const isLearn = path.startsWith('/learn');
   const isLastInSession = inSession && sessionIdx === sessionIds.length - 1;
 
   return (
@@ -193,11 +205,15 @@ export default function App() {
             : null
         }
         session={inSession ? { index: sessionIdx + 1, total: sessionIds.length } : null}
+        tab={isLearn ? 'learn' : 'practice'}
+        onTab={(t) => (t === 'learn' ? goLearn() : home())}
         user={user}
         onSignIn={signIn}
         onSignOut={signOut}
       />
-      {isSessionSetup ? (
+      {isLearn ? (
+        <LearnView deck={dbtDeck} store={learn} onReview={onCardReview} />
+      ) : isSessionSetup ? (
         <SessionSetup
           questions={dialectQuestions}
           solvedIds={solvedIds}

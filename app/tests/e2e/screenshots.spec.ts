@@ -14,7 +14,7 @@ FROM customers c
 JOIN orders o ON o.customer_id = c.customer_id
 WHERE o.status = 'completed'
 GROUP BY c.name
-ORDER BY total DESC`;
+ORDER BY total DESC, c.name`;
 
 test.use({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 });
 
@@ -65,4 +65,19 @@ test('error squiggle (invalid SQL)', async ({ page }) => {
   // give the debounced DuckDB linter time to mark the error
   await page.waitForTimeout(1500);
   await page.screenshot({ path: `${DIR}/04-error.png`, fullPage: true });
+});
+
+test('session setup', async ({ page }) => {
+  await page.goto('/#/session');
+  await expect(page.getByTestId('session-start')).toBeVisible();
+  await page.screenshot({ path: `${DIR}/05-session-setup.png`, fullPage: true });
+});
+
+test('learn — flashcard front + back', async ({ page }) => {
+  await page.goto('/#/learn');
+  await expect(page.getByTestId('flashcard-front')).toBeVisible();
+  await page.screenshot({ path: `${DIR}/06-learn-front.png`, fullPage: true });
+  await page.getByTestId('flashcard-reveal').click();
+  await expect(page.getByTestId('flashcard-back')).toBeVisible();
+  await page.screenshot({ path: `${DIR}/07-learn-back.png`, fullPage: true });
 });

@@ -134,6 +134,33 @@ describe('App', () => {
     expect((screen.getByTestId('session-start') as HTMLButtonElement).disabled).toBe(true);
   });
 
+  it('Learn mode: flip a flashcard, rate it, and it counts toward the streak', () => {
+    render(<App />);
+    expect(screen.queryByTestId('streak')).toBeNull(); // no activity yet
+
+    // Switch to Learn via the top-bar tab.
+    fireEvent.click(screen.getByTestId('tab-learn'));
+    expect(screen.getByTestId('flashcard-front')).toBeTruthy();
+    expect(screen.queryByTestId('flashcard-back')).toBeNull(); // answer hidden until flip
+
+    const remaining = () =>
+      Number(/(\d+)/.exec(screen.getByTestId('learn-remaining').textContent ?? '')![1]);
+    const before = remaining();
+
+    // Flip, then rate "Got it".
+    fireEvent.click(screen.getByTestId('flashcard-reveal'));
+    expect(screen.getByTestId('flashcard-back')).toBeTruthy();
+    fireEvent.click(screen.getByTestId('rate-got-it'));
+
+    // Card retired (queue shrank) and the review lit the daily streak.
+    expect(remaining()).toBe(before - 1);
+    expect(screen.getByTestId('streak')).toBeTruthy();
+
+    // Back to Practice.
+    fireEvent.click(screen.getByTestId('tab-practice'));
+    expect(screen.getByTestId('q-orders-by-status')).toBeTruthy();
+  });
+
   it('toggles the theme via the profile menu', () => {
     render(<App />);
     fireEvent.click(screen.getByTestId('profile'));

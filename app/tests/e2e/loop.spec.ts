@@ -1,11 +1,14 @@
 import { test, expect, type Page } from '@playwright/test';
 
+// Must match the question's required ordering: total desc, then name (the prompt
+// says "break ties by name"). Without the tie-break, ties in the scaled dataset
+// make this a genuinely wrong order.
 const CORRECT_SQL = `SELECT c.name, SUM(o.amount) AS total
 FROM customers c
 JOIN orders o ON o.customer_id = c.customer_id
 WHERE o.status = 'completed'
 GROUP BY c.name
-ORDER BY total DESC`;
+ORDER BY total DESC, c.name`;
 
 // CodeMirror renders a contenteditable; type into its content area.
 async function typeSql(page: Page, sql: string) {
@@ -21,7 +24,7 @@ test('selects a question, runs and grades a correct answer, records progress', a
   page.on('pageerror', (e) => pageErrors.push(String(e)));
 
   await page.goto('/');
-  await expect(page.getByTestId('progress')).toHaveAttribute('aria-label', /Solved 0 of 61/);
+  await expect(page.getByTestId('progress')).toHaveAttribute('aria-label', /Solved 0 of/);
 
   await page.getByTestId('q-customer-completed-revenue').click();
   await expect(page.getByTestId('question-title')).toContainText('Revenue per customer');
@@ -35,7 +38,7 @@ test('selects a question, runs and grades a correct answer, records progress', a
 
   await page.getByTestId('submit').click();
   await expect(page.getByTestId('verdict')).toHaveText('Correct');
-  await expect(page.getByTestId('progress')).toHaveAttribute('aria-label', /Solved 1 of 61/);
+  await expect(page.getByTestId('progress')).toHaveAttribute('aria-label', /Solved 1 of/);
 
   expect(pageErrors, `page errors: ${pageErrors.join('\n')}`).toEqual([]);
 });

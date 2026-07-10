@@ -62,7 +62,7 @@ _Goal: a usable tool, not just one question._
 ## Phase 4 — PWA / offline & deploy
 _Goal: installable, offline-capable, hosted._
 - ✅ Service worker + manifest via `vite-plugin-pwa` (autoUpdate). App shell precached; DuckDB `.wasm` runtime-cached (CacheFirst) so it works offline after first real load.
-- ✅ Web manifest (name/theme/icons), installable. SVG icon shipped; **PNG 192/512 icons are a follow-up** for store-grade install prompts.
+- ✅ Web manifest (name/theme/icons), installable. SVG icon shipped; **PNG 192/512 icons are a follow-up** for store-grade install prompts. **⬜ TODO (confirmed relevant 2026-07-10):** the live manifest ships only the SVG icon, so the install prompt is unreliable on some platforms (Chrome/Android expect PNG 192 + 512, incl. a maskable one). Small chunk: generate PNGs from `public/icon.svg`, add them to the manifest `icons`.
 - ⬜ Verify offline + install in a real browser (needs the browser-in-container or host run). Now testable against the live URL.
 - ✅ **Deployed to Cloudflare (Workers static assets) — LIVE at https://ae-practise-tool.vchapandrews.workers.dev** (2026-07-10). Root-domain deploy (no Vite `base` needed; hash router needs no SPA rewrite). Key gotcha hit + fixed: DuckDB's wasm (33–38 MB) exceeds Cloudflare's 25 MiB per-asset cap, so the engine now loads from jsDelivr (ADR 0001 update); only the app shell + polyglot wasm are self-hosted.
 
@@ -74,7 +74,7 @@ _Goal: installable, offline-capable, hosted._
 - AI explanation mode · auth · payments · marketing/SEO site (`web`/`site` folder)
 
 ### Idea backlog (captured, not scheduled)
-- **Learning mode, not just practice (flashcards)** — add a study/learn section alongside the practice tool: spaced-repetition **flashcards** for concepts/commands/features. First target: **dbt** (commands, concepts, features — e.g. `ref()`/`source()`, materializations, tests, incremental models). Would generalise to SQL-concept flashcards too. Pairs with the existing progress/streak system. A distinct "mode" from the solve loop; consider a top-level Practice vs Learn split.
+- ✅ **Learning mode / flashcards (shipped 2026-07-10, ADR 0007).** A second **Learn** pillar alongside Practice: top-bar **Practice | Learn** tabs → `#/learn`, spaced-repetition flashcards with **Leitner** scheduling (`src/learn/`, pure + unit-tested), a **dbt fundamentals deck** (~32 web-verified cards: ref/source, materializations, data_tests vs unit tests, incremental, snapshots, commands, Jinja/config). Flip → rate (Again / Got it); reviews feed the **shared daily streak** via `progress.touchStreak()`. Follow-ups: more decks (SQL concepts), SM-2 upgrade, per-deck progress UI — see ADR 0007.
 - **Prioritised feature ideas from a research pass** → [`notes/research/feature-ideas-2026.md`](./notes/research/feature-ideas-2026.md) (result-diff on incorrect, concept filters & learning paths, richer progress/review, debugging challenge type, AI coach, …).
 - **SQL feature coverage tracker** → `pnpm coverage` writes [`COVERAGE.md`](./COVERAGE.md) (live per-feature question counts; 21/51 covered). Catalog in `app/src/content/features.ts`.
 - **Advanced / Snowflake content** → research + decision in [`notes/research/snowflake-vs-duckdb.md`](./notes/research/snowflake-vs-duckdb.md). Recommended phased approach: build identical-syntax advanced questions now (joins, ROLLUP/CUBE/GROUPING SETS, PIVOT, set ops, window frames), defer true Snowflake-dialect fidelity (regex/lambda/JSON-path spelling) to an ADR-0002 transpile layer.

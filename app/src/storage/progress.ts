@@ -24,6 +24,9 @@ export interface ProgressStore {
   getReviewIds(): string[];
   get(id: string): QuestionProgress;
   recordAttempt(id: string, correct: boolean): void;
+  /** Count today as an active day for the streak without recording a question
+   *  attempt — used by Learn-mode flashcard reviews (both pillars feed one streak). */
+  touchStreak(): void;
   stats(): ProgressStats;
 }
 
@@ -88,6 +91,16 @@ export function createProgressStore(
     return d.streak.lastActiveDay === today || d.streak.lastActiveDay === prevYmd(now());
   };
 
+  // Count today as an active day: extend the streak if yesterday was active, else
+  // reset to 1. No-op if today was already counted. Shared by attempts + reviews.
+  const bumpStreak = (d: Data): void => {
+    const today = ymd(now());
+    if (d.streak.lastActiveDay === today) return;
+    d.streak.current = d.streak.lastActiveDay === prevYmd(now()) ? d.streak.current + 1 : 1;
+    d.streak.lastActiveDay = today;
+    d.streak.longest = Math.max(d.streak.longest, d.streak.current);
+  };
+
   return {
     isSolved: (id) => Boolean(read().questions[id]?.solved),
     getSolvedIds: () =>
@@ -112,14 +125,13 @@ export function createProgressStore(
         q.solved = true;
       }
       d.questions[id] = q;
+      bumpStreak(d); // any attempt counts as an active day
+      write(d);
+    },
 
-      // Any attempt counts as an active day for the streak.
-      const today = ymd(now());
-      if (d.streak.lastActiveDay !== today) {
-        d.streak.current = d.streak.lastActiveDay === prevYmd(now()) ? d.streak.current + 1 : 1;
-        d.streak.lastActiveDay = today;
-        d.streak.longest = Math.max(d.streak.longest, d.streak.current);
-      }
+    touchStreak: () => {
+      const d = read();
+      bumpStreak(d);
       write(d);
     },
 

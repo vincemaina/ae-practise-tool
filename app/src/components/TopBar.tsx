@@ -63,6 +63,8 @@ export function TopBar({
   onHome,
   nav,
   session,
+  tab,
+  onTab,
   user,
   onSignIn,
   onSignOut,
@@ -77,6 +79,9 @@ export function TopBar({
   nav?: SolveNav | null;
   /** Present while walking a practice session — shows progress, hides shuffle. */
   session?: { index: number; total: number } | null;
+  /** Practice|Learn mode tabs (shown on top-level pages, i.e. when not solving). */
+  tab: 'practice' | 'learn';
+  onTab: (t: 'practice' | 'learn') => void;
   user: Profile | null;
   onSignIn: (name: string) => void;
   onSignOut: () => void;
@@ -87,10 +92,31 @@ export function TopBar({
         <button className="logo-btn" onClick={onHome} aria-label="All problems" title="All problems">
           <span className="brand-mark">⌁</span>
         </button>
-        {nav && (
+        {nav ? (
           <button className="link-btn" onClick={nav.onBack} data-testid="back">
             ← All problems
           </button>
+        ) : (
+          <div className="mode-tabs" role="tablist" aria-label="Practice or Learn">
+            <button
+              role="tab"
+              aria-selected={tab === 'practice'}
+              className={`mode-tab ${tab === 'practice' ? 'active' : ''}`}
+              onClick={() => onTab('practice')}
+              data-testid="tab-practice"
+            >
+              Practice
+            </button>
+            <button
+              role="tab"
+              aria-selected={tab === 'learn'}
+              className={`mode-tab ${tab === 'learn' ? 'active' : ''}`}
+              onClick={() => onTab('learn')}
+              data-testid="tab-learn"
+            >
+              Learn
+            </button>
+          </div>
         )}
       </div>
 
