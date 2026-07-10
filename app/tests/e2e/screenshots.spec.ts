@@ -42,6 +42,14 @@ test('solve — light', async ({ page }) => {
   await page.screenshot({ path: `${DIR}/01-solve-light.png`, fullPage: true });
 });
 
+test('solve — schema sample rows expanded', async ({ page }) => {
+  await page.goto('/');
+  await openQuestionReady(page);
+  await page.getByTestId('toggle-schema-data').click();
+  await page.waitForTimeout(500); // let sample data render
+  await page.screenshot({ path: `${DIR}/08-schema-expanded.png`, fullPage: true });
+});
+
 test('overview — dark', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('ae-practice:theme', 'dark'));
   await page.goto('/');

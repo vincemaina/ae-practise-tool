@@ -134,6 +134,16 @@ describe('App', () => {
     expect((screen.getByTestId('session-start') as HTMLButtonElement).disabled).toBe(true);
   });
 
+  it('shows the schema inline, with sample rows behind a toggle', async () => {
+    render(<App />);
+    fireEvent.click(screen.getByTestId('q-orders-by-status'));
+    // Columns are shown inline; sample rows are collapsed behind a toggle.
+    const toggle = await screen.findByTestId('toggle-schema-data');
+    expect(toggle.textContent).toContain('Show sample rows');
+    fireEvent.click(toggle);
+    expect(screen.getByTestId('toggle-schema-data').textContent).toContain('Hide sample rows');
+  });
+
   it('Learn mode: flip a flashcard, rate it, and it counts toward the streak', () => {
     render(<App />);
     expect(screen.queryByTestId('streak')).toBeNull(); // no activity yet

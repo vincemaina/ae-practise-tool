@@ -1713,3 +1713,37 @@ pre.canonical {
 .learn-done strong {
   font-size: 1.2rem;
 }
+
+/* ── Compact schema panel (columns-first, sample rows on toggle) ── */
+.schema-line {
+  display: flex;
+  gap: 0.6rem;
+  align-items: baseline;
+  padding: 0.35rem 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.schema-line + .schema-sample {
+  margin: 0.1rem 0 0.6rem;
+}
+
+.schema-tname {
+  font-weight: 650;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.schema-tname::after {
+  content: ':';
+  color: var(--text-muted);
+}
+
+.schema-cols {
+  color: var(--text-muted);
+  word-break: break-word;
+}
+
+.schema-card .schema-table:not(:last-child) {
+  border-bottom: 1px solid var(--border);
+}
