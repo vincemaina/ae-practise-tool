@@ -37,8 +37,78 @@ export interface FeedbackInput {
   screenshot?: string;
 }
 
+type FeedbackPayload = FeedbackInput & { route: string; queuedAt?: string };
+
+// Feedback is user-authored, so unlike best-effort events we never want to lose
+// it: if the dev server is down, stash it in localStorage and resend when the
+// server comes back (on startup, on a timer, on 'online', and after any send).
+const FEEDBACK_QUEUE_KEY = 'ae-practice:feedback-queue';
+const MAX_QUEUED = 25;
+
+function readQueue(): FeedbackPayload[] {
+  try {
+    const raw = localStorage.getItem(FEEDBACK_QUEUE_KEY);
+    const parsed = raw ? (JSON.parse(raw) as unknown) : [];
+    return Array.isArray(parsed) ? (parsed as FeedbackPayload[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeQueue(queue: FeedbackPayload[]): void {
+  try {
+    // Keep only the most recent, so a long offline stretch can't grow unbounded.
+    localStorage.setItem(FEEDBACK_QUEUE_KEY, JSON.stringify(queue.slice(-MAX_QUEUED)));
+  } catch {
+    /* localStorage full/unavailable — best-effort */
+  }
+}
+
+/** POST one feedback payload; resolves true on a 2xx, false on any failure. */
+async function postFeedback(payload: FeedbackPayload): Promise<boolean> {
+  try {
+    const res = await fetch('/__dev/feedback', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+let flushing = false;
+/** Resend any queued feedback; keep whatever still fails. Safe to call anytime. */
+export async function flushFeedbackQueue(): Promise<void> {
+  if (!DEV || flushing) return;
+  const queue = readQueue();
+  if (queue.length === 0) return;
+  flushing = true;
+  try {
+    const remaining: FeedbackPayload[] = [];
+    for (const item of queue) {
+      if (!(await postFeedback(item))) remaining.push(item);
+    }
+    writeQueue(remaining);
+  } finally {
+    flushing = false;
+  }
+}
+
 export function sendFeedback(fb: FeedbackInput): void {
-  post('/feedback', { ...fb, route: route() });
+  if (!DEV) return;
+  const payload: FeedbackPayload = { ...fb, route: route() };
+  void postFeedback(payload).then((ok) => {
+    if (ok) {
+      // Server is up — good moment to drain anything that queued while it was down.
+      void flushFeedbackQueue();
+    } else {
+      const queue = readQueue();
+      queue.push({ ...payload, queuedAt: new Date().toISOString() });
+      writeQueue(queue);
+    }
+  });
 }
 
 let installed = false;
@@ -66,6 +136,13 @@ export function installTelemetry(): void {
     },
     true,
   );
+
+  // Deliver any feedback that queued while the server was down: now (on load),
+  // when connectivity returns, and on a timer (a restarted dev server doesn't
+  // fire 'online', so poll — cheap: no-ops when the queue is empty).
+  void flushFeedbackQueue();
+  window.addEventListener('online', () => void flushFeedbackQueue());
+  setInterval(() => void flushFeedbackQueue(), 15_000);
 
   logEvent('session_start', { detail: { ua: navigator.userAgent, viewport: `${window.innerWidth}x${window.innerHeight}` } });
 }
