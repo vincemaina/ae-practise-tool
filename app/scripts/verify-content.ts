@@ -99,6 +99,15 @@ for (const q of questions) {
     'stale',
   );
 
+  // A required-construct assertion must actually be satisfiable: at least one
+  // authored canonical solution has to use the construct (ADR 0004 update).
+  if (q.requires) {
+    const satisfied = Object.values(q.canonical).some(
+      (sql) => sql && q.requires!.pattern.test(sql),
+    );
+    check(`a canonical solution satisfies requires (${q.requires.pattern})`, satisfied);
+  }
+
   // Per-dialect solutions (e.g. canonical.snowflake) must transpile to DuckDB
   // and produce the same output as the generic canonical (ADR 0006).
   for (const [dialect, solution] of Object.entries(q.canonical)) {

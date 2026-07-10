@@ -31,6 +31,10 @@ export const sfLargestOrderPerCustomer: Question = {
     `,
   },
   grading: { orderMatters: true },
+  requires: {
+    pattern: /\bqualify\b/i,
+    message: 'This question is about QUALIFY — filter the window function directly, not with a subquery.',
+  },
   hints: [
     'ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY amount DESC, order_id) ranks each customer’s orders.',
     'QUALIFY filters on that window function directly — keep the rows where it equals 1.',

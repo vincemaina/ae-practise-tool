@@ -27,6 +27,10 @@ export const sfActiveOrCancelDate: Question = {
     `,
   },
   grading: { orderMatters: true },
+  requires: {
+    pattern: /\bnvl\s*\(/i,
+    message: "Use Snowflake's NVL to substitute the default, not COALESCE.",
+  },
   hints: [
     'TO_VARCHAR(canceled_at) turns the date into text; it is NULL when there is no cancel date.',
     "NVL(value, 'active') substitutes 'active' whenever value is NULL.",

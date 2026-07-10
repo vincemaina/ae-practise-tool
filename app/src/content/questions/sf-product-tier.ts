@@ -26,6 +26,10 @@ export const sfProductTier: Question = {
     `,
   },
   grading: { orderMatters: true },
+  requires: {
+    pattern: /\biff\s*\(/i,
+    message: "This one's about IFF — use Snowflake's IFF(), not a CASE expression.",
+  },
   hints: [
     'IFF(condition, value_if_true, value_if_false) is Snowflake’s inline conditional.',
     "IFF(price > 20, 'premium', 'standard').",

@@ -21,6 +21,7 @@ export const likeNamedCustomers: Question = {
     `,
   },
   grading: { orderMatters: true },
+  requires: { pattern: /\blike\b/i, message: 'This question is about LIKE — use a LIKE pattern.' },
   hints: [
     'LIKE matches patterns; % is any run of characters.',
     "Exclude the generic names with WHERE name NOT LIKE 'Customer %'.",

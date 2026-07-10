@@ -27,6 +27,10 @@ export const sfCustomerNumber: Question = {
     `,
   },
   grading: { orderMatters: true },
+  requires: {
+    pattern: /regexp_substr/i,
+    message: "Use Snowflake's REGEXP_SUBSTR here, not a different string function.",
+  },
   hints: [
     "REGEXP_SUBSTR(name, '[0-9]+') returns the first run of digits in the name.",
     'Wrap it in CAST(… AS INTEGER) so it sorts numerically.',

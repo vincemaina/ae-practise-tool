@@ -8,6 +8,7 @@ import { logEvent } from '../dev/telemetry';
 import type { Question } from '../content/types';
 import { ensureDataset, runQuery, validateSql } from '../engine/duckdb';
 import { grade, type GradeResult } from '../grading/grade';
+import { checkRequiredConstruct } from '../grading/requireConstruct';
 import type { ResultSet } from '../grading/types';
 import { ResultsTable } from './ResultsTable';
 import { SqlEditor } from './SqlEditor';
@@ -88,6 +89,9 @@ export function PracticeView({
   const [verdict, setVerdict] = useState<GradeResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [revealed, setRevealed] = useState(false);
+  // True when the rows matched but the question's required construct was missing —
+  // used to suppress the (empty) row-diff for that case.
+  const [constructFail, setConstructFail] = useState(false);
   const [hintCount, setHintCount] = useState(0);
   const [busy, setBusy] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -156,7 +160,17 @@ export function PracticeView({
       const exp = await getExpected();
       const got = await runQuery(queryToRun, writingDialect);
       setResults(got);
-      const result = grade(exp, got, question.grading);
+      const graded = grade(exp, got, question.grading);
+      // Showcase questions can also require a specific construct in the SQL you
+      // wrote — the rows matching isn't enough (ADR 0004 update). Only applies
+      // when the output was otherwise correct; a wrong result shows the normal diff.
+      const missingConstruct = graded.correct
+        ? checkRequiredConstruct(queryToRun, question.requires)
+        : null;
+      const result: GradeResult = missingConstruct
+        ? { correct: false, reasons: [missingConstruct] }
+        : graded;
+      setConstructFail(Boolean(missingConstruct));
       setVerdict(result);
       logEvent('submit', {
         questionId: question.id,
@@ -364,7 +378,7 @@ export function PracticeView({
                 </div>
               )}
 
-              {verdict && !verdict.correct && expected && results && (
+              {verdict && !verdict.correct && !constructFail && expected && results && (
                 <div className="output-section">
                   <span className="section-label">What’s different</span>
                   <DiffView expected={expected} actual={results} grading={question.grading} />

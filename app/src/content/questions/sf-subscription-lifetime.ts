@@ -27,6 +27,10 @@ export const sfSubscriptionLifetime: Question = {
     `,
   },
   grading: { orderMatters: true },
+  requires: {
+    pattern: /datediff/i,
+    message: "Use Snowflake's DATEDIFF, not plain date subtraction.",
+  },
   hints: [
     'Only cancelled rows count: WHERE canceled_at IS NOT NULL.',
     "DATEDIFF('day', started_at, canceled_at) returns the number of whole days between them.",

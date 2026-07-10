@@ -27,6 +27,10 @@ export const sfJsonAmountPerUser: Question = {
     `,
   },
   grading: { orderMatters: true },
+  requires: {
+    pattern: /\bpayload\s*:/i,
+    message: "Use Snowflake's colon path syntax (payload:amount), not the ->> operator.",
+  },
   hints: [
     'payload:amount reads the amount field out of the JSON; ::decimal(10,2) casts it to a number.',
     'Group by user_id and SUM the cast amounts.',

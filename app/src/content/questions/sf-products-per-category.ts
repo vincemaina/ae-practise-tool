@@ -27,6 +27,10 @@ export const sfProductsPerCategory: Question = {
     `,
   },
   grading: { orderMatters: true },
+  requires: {
+    pattern: /listagg/i,
+    message: "Use Snowflake's LISTAGG … WITHIN GROUP, not STRING_AGG.",
+  },
   hints: [
     "LISTAGG(name, ', ') concatenates the names in each group, separated by a comma and space.",
     'WITHIN GROUP (ORDER BY name) fixes the order inside each list so the result is stable.',

@@ -27,6 +27,7 @@ export const sfChurnLabel: Question = {
     `,
   },
   grading: { orderMatters: true },
+  requires: { pattern: /\bnvl2\s*\(/i, message: "Use Snowflake's NVL2, not a CASE expression." },
   hints: [
     'NVL2(expr, a, b) returns a when expr is NOT NULL, and b when it IS NULL.',
     "So NVL2(canceled_at, 'churned', 'active') keys off whether a cancel date exists.",

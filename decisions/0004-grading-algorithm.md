@@ -55,3 +55,22 @@ Minimal, with safe defaults:
   - Type-family normalisation needs care against DuckDB's returned types (BIGINT, HUGEINT, DECIMAL, TIMESTAMP_TZ, LIST/STRUCT/JSON). Nested types (LIST/STRUCT/JSON) need recursive normalisation — flag for when semi-structured questions arrive; not MVP-critical.
   - Default `requireColumnNames: false` means a question that's *about* naming must opt in — document this in the authoring guide.
   - Determinism is assumed (ADR 0003 validation test); a non-deterministic canonical under `orderMatters: false` is fine, but under `orderMatters: true` it must have a total ordering — the validation test should assert it.
+
+## Update 2026-07-10 — optional "required construct" assertion (scoped exception)
+
+Output-equivalence has a deliberate blind spot: it can't distinguish two queries
+that return the same rows. For most questions that's correct (many valid ways to
+get the right answer). But for **function/dialect showcase questions** — where the
+whole point is a specific construct — a learner can sidestep the lesson. Found in
+testing: `sf-generic-customers` asks for Snowflake `STARTSWITH`, but `LIKE 'Customer%'`
+returns identical rows and passed.
+
+**Decision:** add an **opt-in** `requires: { pattern: RegExp; message }` on a
+question (`grading/requireConstruct.ts`). It's a *hard fail* layered **on top of**
+output-equivalence: on Submit, if the rows match but the user's typed SQL (their
+dialect, pre-transpile) doesn't contain the construct, the verdict is Incorrect with
+`message`. Questions without `requires` are unaffected — pure output-equivalence as
+before. This is **not** grading by string-matching the whole query (still explicitly
+rejected); it's a narrow presence assertion for questions whose brief names the
+construct. Scoped to the `sf-*` set + the `LIKE` question. `verify:content` asserts
+each such question's own canonical actually satisfies its pattern.

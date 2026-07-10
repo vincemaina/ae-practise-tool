@@ -26,6 +26,7 @@ export const sfMedianOrderAmount: Question = {
     `,
   },
   grading: { orderMatters: true },
+  requires: { pattern: /\bmedian\s*\(/i, message: "Use Snowflake's MEDIAN aggregate." },
   hints: [
     'Group the orders by status, then take MEDIAN(amount) of each group.',
     'MEDIAN is an aggregate, so it pairs with GROUP BY status.',

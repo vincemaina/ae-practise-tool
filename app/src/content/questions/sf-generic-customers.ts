@@ -26,6 +26,10 @@ export const sfGenericCustomers: Question = {
     `,
   },
   grading: { orderMatters: true },
+  requires: {
+    pattern: /startswith/i,
+    message: "This question is about STARTSWITH — solve it with that, not LIKE.",
+  },
   hints: [
     "STARTSWITH(name, 'Customer') is TRUE when name begins with that prefix.",
     'Use it in the WHERE clause to keep only those rows.',

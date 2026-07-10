@@ -25,6 +25,10 @@ export const sfRenewalDate: Question = {
     `,
   },
   grading: { orderMatters: true },
+  requires: {
+    pattern: /dateadd/i,
+    message: "Use Snowflake's DATEADD, not interval arithmetic.",
+  },
   hints: [
     "DATEADD('day', 30, started_at) shifts the start date forward by 30 days.",
     'Order by the computed renews_on, breaking ties by customer.',

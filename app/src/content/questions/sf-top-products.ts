@@ -25,6 +25,10 @@ export const sfTopProducts: Question = {
     `,
   },
   grading: { orderMatters: true },
+  requires: {
+    pattern: /\btop\s+\d/i,
+    message: 'This question is about TOP n — use SELECT TOP 5, not LIMIT.',
+  },
   hints: [
     'SELECT TOP 5 … goes right after SELECT, before the column list.',
     'Still order the rows with ORDER BY price DESC, name.',

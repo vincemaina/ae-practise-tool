@@ -5,9 +5,10 @@ export const distinctEventsDedup: Question = {
   slug: 'distinct-events-dedup',
   title: 'De-duplicate the event stream',
   prompt:
-    'The event stream contains exact duplicate rows. Return the number of unique events, ' +
-    'where uniqueness is defined by (user_id, event_name, event_at). Single column ' +
-    'unique_events.',
+    'The event stream logs some events more than once: the same (user_id, event_name, ' +
+    'event_at) shows up in multiple rows — each with its own event_id, so the rows are not ' +
+    'byte-for-byte identical. Return the number of unique events, where uniqueness is defined ' +
+    'by (user_id, event_name, event_at). Single column unique_events.',
   difficulty: 'medium',
   packs: ['Messy Data'],
   dialects: ['generic'],

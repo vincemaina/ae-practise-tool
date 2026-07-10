@@ -1,4 +1,5 @@
 import type { GradeOptions } from '../grading/grade';
+import type { RequiredConstruct } from '../grading/requireConstruct';
 
 /**
  * A question's `dialects` lists which SQL dialects it's *appropriate for*.
@@ -43,4 +44,8 @@ export interface Question {
   starterSql?: string;
   /** Feature ids (see features.ts) the auto-detector can't infer, e.g. self-joins. */
   features?: string[];
+  /** For function/dialect showcase questions: also require the submitted SQL to
+   *  use a specific construct (checked on top of output-equivalence, so e.g. LIKE
+   *  can't stand in for a question about STARTSWITH). See requireConstruct.ts. */
+  requires?: RequiredConstruct;
 }
