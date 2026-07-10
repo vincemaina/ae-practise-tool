@@ -1513,3 +1513,110 @@ pre.canonical {
   color: var(--accent);
   white-space: nowrap;
 }
+
+/* ── Practice sessions ─────────────────────────────────────────── */
+
+/* Entry button on the problem list, right-aligned in the head row. */
+.start-session-btn {
+  margin-left: auto;
+  align-self: center;
+}
+
+/* Session progress chip in the top bar (replaces shuffle while in a session). */
+.session-chip {
+  font-size: 0.8rem;
+  font-weight: 650;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.session-intro {
+  margin: -0.3rem 0 1.1rem;
+  max-width: 60ch;
+}
+
+.session-config {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+  max-width: 640px;
+}
+
+.session-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.session-selects {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.session-selects select {
+  flex: 1 1 180px;
+  min-width: 150px;
+}
+
+.session-chips {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* A pill toggle used for difficulty / pool / length / order choices. */
+.chip-toggle {
+  font: inherit;
+  font-size: 0.85rem;
+  text-transform: capitalize;
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease,
+    color 0.12s ease;
+}
+
+.chip-toggle:hover {
+  border-color: var(--accent);
+}
+
+.chip-toggle.on {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 650;
+}
+
+.chip-toggle:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.session-check {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-top: 0.15rem;
+  cursor: pointer;
+}
+
+.session-start-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--border);
+  padding-top: 1.1rem;
+}

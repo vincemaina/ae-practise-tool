@@ -62,6 +62,7 @@ export function TopBar({
   onToggleTheme,
   onHome,
   nav,
+  session,
   user,
   onSignIn,
   onSignOut,
@@ -74,6 +75,8 @@ export function TopBar({
   onHome: () => void;
   /** Present only on the solve screen — adds back + prev/next/shuffle. */
   nav?: SolveNav | null;
+  /** Present while walking a practice session — shows progress, hides shuffle. */
+  session?: { index: number; total: number } | null;
   user: Profile | null;
   onSignIn: (name: string) => void;
   onSignOut: () => void;
@@ -97,9 +100,15 @@ export function TopBar({
             <button className="icon-btn" onClick={nav.onPrev} aria-label="Previous problem" title="Previous">
               <Chevron dir="left" />
             </button>
-            <button className="icon-btn" onClick={nav.onShuffle} data-testid="shuffle" aria-label="Random problem" title="Random">
-              <ShuffleIcon />
-            </button>
+            {session ? (
+              <span className="session-chip" data-testid="session-progress" title="Practice session progress">
+                Session · {session.index}/{session.total}
+              </span>
+            ) : (
+              <button className="icon-btn" onClick={nav.onShuffle} data-testid="shuffle" aria-label="Random problem" title="Random">
+                <ShuffleIcon />
+              </button>
+            )}
             <button className="icon-btn" onClick={nav.onNext} aria-label="Next problem" title="Next">
               <Chevron dir="right" />
             </button>

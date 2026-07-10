@@ -100,6 +100,40 @@ describe('App', () => {
     expect(screen.getByText('🐞 Debug')).toBeTruthy();
   });
 
+  it('runs a practice session with a progress counter that advances', () => {
+    render(<App />);
+    // Open the session setup, which shows a live count (10 unsolved by default).
+    fireEvent.click(screen.getByTestId('start-session'));
+    expect(screen.getByTestId('session-count').textContent).toContain('10 questions');
+
+    // Start it → land on the first question with a "Session · 1/10" chip.
+    fireEvent.click(screen.getByTestId('session-start'));
+    expect(screen.getByTestId('question-title')).toBeTruthy();
+    expect(screen.getByTestId('session-progress').textContent).toContain('Session · 1/10');
+    // Shuffle is replaced by the session chip while in a session.
+    expect(screen.queryByTestId('shuffle')).toBeNull();
+
+    // Next advances the counter within the queue.
+    fireEvent.click(screen.getByLabelText('Next problem'));
+    expect(screen.getByTestId('session-progress').textContent).toContain('Session · 2/10');
+
+    // Back exits the session (chip gone, session cleared from storage).
+    fireEvent.click(screen.getByTestId('back'));
+    expect(screen.queryByTestId('session-progress')).toBeNull();
+    expect(localStorage.getItem('ae-practice:session')).toBeNull();
+  });
+
+  it('session length and pool controls change the count', () => {
+    render(<App />);
+    fireEvent.click(screen.getByTestId('start-session'));
+    fireEvent.click(screen.getByTestId('session-size-5'));
+    expect(screen.getByTestId('session-count').textContent).toContain('5 questions');
+    // "Needs review" with no prior attempts yields nothing → Start disabled.
+    fireEvent.click(screen.getByTestId('session-pool-review'));
+    expect(screen.getByTestId('session-count').textContent).toMatch(/No questions/);
+    expect((screen.getByTestId('session-start') as HTMLButtonElement).disabled).toBe(true);
+  });
+
   it('toggles the theme via the profile menu', () => {
     render(<App />);
     fireEvent.click(screen.getByTestId('profile'));

@@ -21,12 +21,14 @@ export function ProblemList({
   solvedIds,
   reviewIds,
   onOpen,
+  onStartSession,
   dialect,
   onDialect,
 }: {
   solvedIds: string[];
   reviewIds: string[];
   onOpen: (slug: string) => void;
+  onStartSession: () => void;
   dialect: DialectFilter;
   onDialect: (d: DialectFilter) => void;
 }) {
@@ -96,6 +98,14 @@ export function ProblemList({
             ))}
           </select>
         </label>
+        <button
+          type="button"
+          className="primary start-session-btn"
+          onClick={onStartSession}
+          data-testid="start-session"
+        >
+          Start a session →
+        </button>
       </div>
 
       {!isReview && !track && recommended && (

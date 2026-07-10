@@ -8,8 +8,10 @@ import {
 } from './content';
 import { ProblemList } from './components/ProblemList';
 import { SolveView } from './components/SolveView';
+import { SessionSetup } from './components/SessionSetup';
 import { TopBar } from './components/TopBar';
 import { createProgressStore } from './storage/progress';
+import type { SessionState } from './session/session';
 import { useTheme } from './theme/useTheme';
 import { useRoute } from './route/useRoute';
 import { installTelemetry, logEvent } from './dev/telemetry';
@@ -18,6 +20,7 @@ import { FeedbackWidget } from './dev/FeedbackWidget';
 const progress = createProgressStore();
 const NAME_KEY = 'ae-practice:name';
 const DIALECT_KEY = 'ae-practice:dialect';
+const SESSION_KEY = 'ae-practice:session';
 
 function readName(): string | null {
   try {
@@ -37,6 +40,20 @@ function readDialect(): DialectFilter {
   return 'all';
 }
 
+function readSession(): SessionState | null {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    const s = JSON.parse(raw) as Partial<SessionState>;
+    if (Array.isArray(s.ids) && s.ids.length > 0) {
+      return { ids: s.ids, createdAt: s.createdAt ?? '' };
+    }
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
 export default function App() {
   const { theme, toggle } = useTheme();
   const { path, navigate } = useRoute();
@@ -47,7 +64,18 @@ export default function App() {
   const user = userName ? { name: userName } : null;
 
   const [dialect, setDialectState] = useState<DialectFilter>(readDialect);
+  const [session, setSessionState] = useState<SessionState | null>(readSession);
   const dialectQuestions = useMemo(() => questions.filter((q) => matchesDialect(q, dialect)), [dialect]);
+
+  function setSession(s: SessionState | null) {
+    try {
+      if (s) localStorage.setItem(SESSION_KEY, JSON.stringify(s));
+      else localStorage.removeItem(SESSION_KEY);
+    } catch {
+      /* ignore */
+    }
+    setSessionState(s);
+  }
   function setDialect(d: DialectFilter) {
     try {
       localStorage.setItem(DIALECT_KEY, d);
@@ -86,7 +114,32 @@ export default function App() {
   }, [path]);
 
   const open = (s: string) => navigate(`/q/${s}`);
-  const home = () => navigate('/');
+  // Leaving the solve flow (logo / back / session exit) ends any active session.
+  const home = () => {
+    if (session) setSession(null);
+    navigate('/');
+  };
+  const openById = (id: string) => {
+    const q = questions.find((x) => x.id === id);
+    if (q) open(q.slug);
+  };
+
+  // Session queue nav — derived from which queued question is open, so it
+  // survives reloads without storing a separate index.
+  const sessionIds = session?.ids ?? [];
+  const sessionIdx = question ? sessionIds.indexOf(question.id) : -1;
+  const inSession = sessionIdx >= 0;
+
+  function startSession(ids: string[]) {
+    setSession({ ids, createdAt: new Date().toISOString() });
+    const first = questions.find((q) => q.id === ids[0]);
+    if (first) open(first.slug);
+  }
+  function advanceSession() {
+    const next = sessionIds[sessionIdx + 1];
+    if (next) openById(next);
+    else home(); // past the last question — session complete, back to the list
+  }
 
   function handleAttempt(id: string, correct: boolean) {
     progress.recordAttempt(id, correct);
@@ -113,6 +166,9 @@ export default function App() {
     else home();
   }
 
+  const isSessionSetup = path === '/session';
+  const isLastInSession = inSession && sessionIdx === sessionIds.length - 1;
+
   return (
     <div className="app">
       <TopBar
@@ -126,21 +182,35 @@ export default function App() {
           question
             ? {
                 onBack: home,
-                onPrev: () => open(at(base - 1).slug),
-                onNext: () => open(at(base + 1).slug),
+                onPrev: inSession
+                  ? () => sessionIdx > 0 && openById(sessionIds[sessionIdx - 1]!)
+                  : () => open(at(base - 1).slug),
+                onNext: inSession
+                  ? advanceSession
+                  : () => open(at(base + 1).slug),
                 onShuffle: () => open(at(Math.floor(Math.random() * navPool.length)).slug),
               }
             : null
         }
+        session={inSession ? { index: sessionIdx + 1, total: sessionIds.length } : null}
         user={user}
         onSignIn={signIn}
         onSignOut={signOut}
       />
-      {question ? (
+      {isSessionSetup ? (
+        <SessionSetup
+          questions={dialectQuestions}
+          solvedIds={solvedIds}
+          reviewIds={reviewIds}
+          onStart={startSession}
+          onCancel={home}
+        />
+      ) : question ? (
         <SolveView
           question={question}
           onAttempt={handleAttempt}
-          onNext={goNextRecommended}
+          onNext={inSession ? advanceSession : goNextRecommended}
+          nextLabel={inSession ? (isLastInSession ? 'Finish session ✓' : 'Next in session →') : undefined}
           dark={theme === 'dark'}
           dialect={dialect}
         />
@@ -149,6 +219,7 @@ export default function App() {
           solvedIds={solvedIds}
           reviewIds={reviewIds}
           onOpen={open}
+          onStartSession={() => navigate('/session')}
           dialect={dialect}
           onDialect={setDialect}
         />

@@ -45,12 +45,14 @@ export function PracticeView({
   question,
   onAttempt,
   onNext,
+  nextLabel = 'Next recommended →',
   dark,
   dialect,
 }: {
   question: Question;
   onAttempt: (id: string, correct: boolean) => void;
   onNext: () => void;
+  nextLabel?: string;
   dark: boolean;
   dialect: DialectFilter;
 }) {
@@ -344,7 +346,7 @@ export function PracticeView({
                           Solved in {formatTime(seconds)}. Nice — that matches the expected output.
                         </span>
                         <button className="link-btn" onClick={onNext} data-testid="next-recommended">
-                          Next recommended →
+                          {nextLabel}
                         </button>
                       </div>
                     ) : (

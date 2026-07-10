@@ -8,12 +8,15 @@ export function SolveView({
   question,
   onAttempt,
   onNext,
+  nextLabel,
   dark,
   dialect,
 }: {
   question: Question;
   onAttempt: (id: string, correct: boolean) => void;
   onNext: () => void;
+  /** Label for the post-solve advance link (default "Next recommended →"). */
+  nextLabel?: string;
   dark: boolean;
   dialect: DialectFilter;
 }) {
@@ -24,6 +27,7 @@ export function SolveView({
         question={question}
         onAttempt={onAttempt}
         onNext={onNext}
+        nextLabel={nextLabel}
         dark={dark}
         dialect={dialect}
       />
