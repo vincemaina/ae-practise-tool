@@ -40,7 +40,10 @@ const RX = {
   ref: /\{\{-?\s*ref\(\s*'([^']+)'\s*\)\s*-?\}\}/g,
   source: /\{\{-?\s*source\(\s*'([^']+)'\s*,\s*'([^']+)'\s*\)\s*-?\}\}/g,
   self: /\{\{-?\s*this\s*-?\}\}/g,
-  incr: /\{%-?\s*if\s+is_incremental\(\)\s*-?%\}([\s\S]*?)\{%-?\s*endif\s*-?%\}/g,
+  // The `()` on is_incremental is optional so a common slip still resolves.
+  incr: /\{%-?\s*if\s+is_incremental\s*(?:\(\s*\))?\s*-?%\}([\s\S]*?)\{%-?\s*endif\s*-?%\}/g,
+  // Any Jinja delimiter left after rendering = an unsupported/malformed tag.
+  leftover: /\{\{[\s\S]*?\}\}|\{%[\s\S]*?%\}/,
 };
 
 /** Parse a model's config + ref/source dependencies. */
@@ -68,12 +71,21 @@ export function renderModel(
     sourceRelation: (schema: string, table: string) => string;
   },
 ): string {
-  return c.body
+  const rendered = c.body
     .replace(RX.incr, (_all, inner: string) => (opts.isIncremental ? inner : ''))
     .replace(RX.ref, (_all, name: string) => opts.refRelation(name))
     .replace(RX.source, (_all, s: string, t: string) => opts.sourceRelation(s, t))
     .replace(RX.self, () => c.name)
     .trim();
+  // Fail loudly on unresolved Jinja rather than leaking `{{ }}`/`{% %}` into the
+  // SQL, where DuckDB reports a bare `syntax error at or near "{"` (feedback #15).
+  const left = RX.leftover.exec(rendered)?.[0];
+  if (left) {
+    throw new DbtError(
+      `Model '${c.name}': unsupported or malformed Jinja \`${left.trim()}\` — mini-dbt supports ref(), source(), config(), this, and {% if is_incremental() %}.`,
+    );
+  }
+  return rendered;
 }
 
 /** Order models so every model comes after the models it `ref()`s. Throws on a

@@ -77,6 +77,24 @@ describe('renderModel', () => {
       'SELECT * FROM raw_orders',
     );
   });
+
+  it('accepts is_incremental without parens (a common slip)', () => {
+    const m = compileModel({
+      name: 'mart',
+      sql: "SELECT * FROM {{ ref('stg') }} {% if is_incremental %}WHERE ts > (SELECT MAX(ts) FROM {{ this }}){% endif %}",
+    });
+    expect(renderModel(m, { isIncremental: false, refRelation, sourceRelation })).toBe('SELECT * FROM stg');
+    expect(renderModel(m, { isIncremental: true, refRelation, sourceRelation })).toContain(
+      'WHERE ts > (SELECT MAX(ts) FROM mart)',
+    );
+  });
+
+  it('throws a clear error on unresolved/unsupported Jinja instead of leaking it', () => {
+    const bad = compileModel({ name: 'mart', sql: "SELECT * FROM {{ ref('stg') }} {% for x in y %}{% endfor %}" });
+    expect(() => renderModel(bad, { isIncremental: false, refRelation, sourceRelation })).toThrow(
+      /unsupported or malformed Jinja/,
+    );
+  });
 });
 
 describe('topoSort', () => {
