@@ -6,7 +6,21 @@
  * `increment` of new source rows) to test the incremental logic, not a rebuild.
  */
 import type { GradeOptions } from '../grading/grade';
-import { build, type DbtRunner, type Model } from './engine';
+import { build, type DbtRunner, type Materialization, type Model } from './engine';
+
+/** A structural requirement on a submitted model, checked on top of output
+ *  equivalence — so producing the right rows the wrong way (e.g. a table instead
+ *  of an incremental model) is still marked incorrect. See dbt/grade.ts. */
+export interface DbtStructureCheck {
+  /** Model name (a `models/<name>.sql` file) the check applies to. */
+  model: string;
+  /** The model must be configured with this materialization. */
+  materialized?: Materialization;
+  /** Case-insensitive substrings that must appear (e.g. `ref(`, `is_incremental`, `source(`). */
+  mustUse?: string[];
+  /** Shown when the check fails. */
+  message?: string;
+}
 
 export interface DbtChallenge {
   id: string;
@@ -22,6 +36,8 @@ export interface DbtChallenge {
   /** The model whose output is graded. */
   target: string;
   grading: GradeOptions;
+  /** Structural requirements on the submitted models (beyond output equivalence). */
+  checks?: DbtStructureCheck[];
   /** Incremental challenges only: extra source SQL applied before a 2nd build. */
   increment?: string;
   hints?: string[];

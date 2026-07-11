@@ -12,6 +12,14 @@
     "INSERT INTO raw_orders VALUES (4, 12, 99.00, TIMESTAMP '2026-01-03 09:00'), (5, 11, 15.00, TIMESTAMP '2026-01-03 10:00'), (1, 10, 55.00, TIMESTAMP '2026-01-03 11:00');"
   ],
   "target": "orders_mart",
+  "checks": [
+    {
+      "model": "orders_mart",
+      "materialized": "incremental",
+      "mustUse": ["ref(", "is_incremental"],
+      "message": "orders_mart must be an incremental model (config materialized='incremental') that reads from {{ ref('stg_orders') }} and guards new rows with is_incremental() — a plain table isn't enough."
+    }
+  ],
   "starter": {
     "models/stg_orders.sql": ["select order_id, customer_id, amount, updated_at", "from {{ source('raw', 'orders') }}"],
     "models/orders_mart.sql": [

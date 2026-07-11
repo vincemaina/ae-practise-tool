@@ -9,6 +9,13 @@
     "INSERT INTO raw_orders VALUES (1, 10, 50.00, ' Completed '), (2, 11, 30.00, 'CANCELLED'), (3, 10, 20.00, 'completed'), (4, 12, 99.00, 'Refunded ');"
   ],
   "target": "stg_orders",
+  "checks": [
+    {
+      "model": "stg_orders",
+      "mustUse": ["source("],
+      "message": "stg_orders should read from the raw source via source('raw', 'orders'), not the raw table directly."
+    }
+  ],
   "starter": {
     "models/stg_orders.sql": [
       "-- Read from the raw orders source and clean up the status.",

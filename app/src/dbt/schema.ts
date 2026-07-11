@@ -28,6 +28,18 @@ const challengeSchema = z
     solution: fileMap,
     target: z.string(),
     grading: gradingSchema.optional(),
+    checks: z
+      .array(
+        z
+          .object({
+            model: z.string(),
+            materialized: z.enum(['view', 'table', 'incremental', 'ephemeral']).optional(),
+            mustUse: z.array(z.string()).optional(),
+            message: z.string().optional(),
+          })
+          .strict(),
+      )
+      .optional(),
     increment: sqlText.optional(),
     hints: z.array(z.string()).optional(),
   })
@@ -57,6 +69,7 @@ export function parseChallenge(raw: unknown, source: string): DbtChallenge {
     solution: mapSql(p.solution),
     target: p.target,
     grading: p.grading ?? {},
+    ...(p.checks ? { checks: p.checks } : {}),
     ...(p.increment ? { increment: toSql(p.increment) } : {}),
     ...(p.hints ? { hints: p.hints } : {}),
   };

@@ -11,6 +11,7 @@ import * as duckdb from '@duckdb/duckdb-wasm/dist/duckdb-node-blocking.cjs';
 import { challenges } from '../src/dbt/node';
 import { buildChallenge, type DbtChallenge } from '../src/dbt/challenge';
 import type { DbtRunner } from '../src/dbt/engine';
+import { checkStructure } from '../src/dbt/grade';
 import { grade } from '../src/grading/grade';
 import { tableToResultSet } from '../src/engine/result-mapping';
 import type { ResultSet } from '../src/grading/types';
@@ -64,6 +65,9 @@ for (const ch of challenges) {
     check(`solution self-grades as Correct (deterministic)`, grade(expected, rebuilt, ch.grading).correct);
     check(`target '${ch.target}' returns at least one row`, expected.rows.length > 0);
     check(`starter files exist for every solution file`, Object.keys(ch.solution).every((f) => f in ch.starter));
+    // The reference solution must satisfy its own structural checks.
+    const structural = checkStructure(ch.solution, ch.checks ?? []);
+    check(`solution passes its structural checks`, structural.length === 0, structural.join('; '));
   } catch (e) {
     check('builds without error', false, String(e).split('\n')[0]);
   }

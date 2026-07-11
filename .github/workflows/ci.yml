@@ -24,4 +24,6 @@ jobs:
       # The trust gate for contributed content: boots the real DuckDB-Wasm engine
       # and executes + self-grades every question. Broken SQL fails the build.
       - run: pnpm verify:content
+      # dbt challenges: build each reference solution on the real engine + self-grade.
+      - run: pnpm verify:dbt
       - run: pnpm build
