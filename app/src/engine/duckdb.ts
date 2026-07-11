@@ -3,6 +3,8 @@ import type { ResultSet } from '../grading/types';
 import type { DialectFilter } from '../content/dialects';
 import { tableToResultSet } from './result-mapping';
 import { toDuckDB } from './transpile';
+import { buildChallenge, type DbtChallenge } from '../dbt/challenge';
+import type { DbtRunner } from '../dbt/engine';
 
 let dbPromise: Promise<duckdb.AsyncDuckDB> | null = null;
 let connPromise: Promise<duckdb.AsyncDuckDBConnection> | null = null;
@@ -89,6 +91,41 @@ export async function runQuery(sql: string, dialect: DialectFilter = 'all'): Pro
     const conn = await getConn();
     const table = await conn.query(duckSql);
     return tableToResultSet(table);
+  });
+}
+
+/**
+ * Build a dbt challenge's model `files` and return its target model's rows. Runs
+ * in an isolated `dbt_scratch` schema (dropped afterwards) so it never disturbs
+ * the question datasets in the default schema. Used by the Model pillar (dbt).
+ */
+export async function buildDbtTarget(
+  challenge: Pick<DbtChallenge, 'sources' | 'increment' | 'target'>,
+  files: Record<string, string>,
+): Promise<ResultSet> {
+  return serialize(async () => {
+    const conn = await getConn();
+    await conn.query(`DROP SCHEMA IF EXISTS dbt_scratch CASCADE`);
+    await conn.query(`CREATE SCHEMA dbt_scratch`);
+    await conn.query(`USE dbt_scratch`);
+    try {
+      const runner: DbtRunner = {
+        run: async (sql) => {
+          await conn.query(sql);
+        },
+        tableExists: async (name) =>
+          (
+            await conn.query(
+              `SELECT 1 FROM information_schema.tables WHERE table_schema = 'dbt_scratch' AND table_name = '${name}'`,
+            )
+          ).toArray().length > 0,
+      };
+      await buildChallenge(runner, challenge, files);
+      return tableToResultSet(await conn.query(`SELECT * FROM ${challenge.target}`));
+    } finally {
+      await conn.query(`USE main`);
+      await conn.query(`DROP SCHEMA IF EXISTS dbt_scratch CASCADE`);
+    }
   });
 }
 

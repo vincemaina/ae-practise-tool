@@ -10,9 +10,12 @@ import { ProblemList } from './components/ProblemList';
 import { SolveView } from './components/SolveView';
 import { SessionSetup } from './components/SessionSetup';
 import { LearnView } from './components/LearnView';
+import { DbtChallengeList } from './components/DbtChallengeList';
+import { DbtWorkspace } from './components/DbtWorkspace';
 import { TopBar } from './components/TopBar';
 import { createProgressStore } from './storage/progress';
 import { createLearnStore, dbtDeck } from './learn';
+import { challenges, getChallenge } from './dbt';
 import type { SessionState } from './session/session';
 import { useTheme } from './theme/useTheme';
 import { useRoute } from './route/useRoute';
@@ -126,6 +129,10 @@ export default function App() {
     if (session) setSession(null);
     navigate('/learn');
   };
+  const goModel = () => {
+    if (session) setSession(null);
+    navigate('/model');
+  };
   function onCardReview() {
     progress.touchStreak();
     setStreak(progress.stats().streak);
@@ -179,7 +186,10 @@ export default function App() {
 
   const isSessionSetup = path === '/session';
   const isLearn = path.startsWith('/learn');
+  const isModel = path.startsWith('/model');
+  const modelChallenge = isModel && path.startsWith('/model/') ? getChallenge(path.slice('/model/'.length)) : undefined;
   const isLastInSession = inSession && sessionIdx === sessionIds.length - 1;
+  const tab = isLearn ? 'learn' : isModel ? 'model' : 'practice';
 
   return (
     <div className="app">
@@ -205,13 +215,19 @@ export default function App() {
             : null
         }
         session={inSession ? { index: sessionIdx + 1, total: sessionIds.length } : null}
-        tab={isLearn ? 'learn' : 'practice'}
-        onTab={(t) => (t === 'learn' ? goLearn() : home())}
+        tab={tab}
+        onTab={(t) => (t === 'learn' ? goLearn() : t === 'model' ? goModel() : home())}
         user={user}
         onSignIn={signIn}
         onSignOut={signOut}
       />
-      {isLearn ? (
+      {isModel ? (
+        modelChallenge ? (
+          <DbtWorkspace challenge={modelChallenge} dark={theme === 'dark'} />
+        ) : (
+          <DbtChallengeList challenges={challenges} onOpen={(slug) => navigate(`/model/${slug}`)} />
+        )
+      ) : isLearn ? (
         <LearnView deck={dbtDeck} store={learn} onReview={onCardReview} />
       ) : isSessionSetup ? (
         <SessionSetup

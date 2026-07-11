@@ -79,9 +79,9 @@ export function TopBar({
   nav?: SolveNav | null;
   /** Present while walking a practice session — shows progress, hides shuffle. */
   session?: { index: number; total: number } | null;
-  /** Practice|Learn mode tabs (shown on top-level pages, i.e. when not solving). */
-  tab: 'practice' | 'learn';
-  onTab: (t: 'practice' | 'learn') => void;
+  /** Practice|Learn|Model mode tabs (shown on top-level pages, i.e. not solving). */
+  tab: 'practice' | 'learn' | 'model';
+  onTab: (t: 'practice' | 'learn' | 'model') => void;
   user: Profile | null;
   onSignIn: (name: string) => void;
   onSignOut: () => void;
@@ -115,6 +115,15 @@ export function TopBar({
               data-testid="tab-learn"
             >
               Learn
+            </button>
+            <button
+              role="tab"
+              aria-selected={tab === 'model'}
+              className={`mode-tab ${tab === 'model' ? 'active' : ''}`}
+              onClick={() => onTab('model')}
+              data-testid="tab-model"
+            >
+              Model
             </button>
           </div>
         )}
