@@ -1,0 +1,35 @@
+{
+  "$schema": "../challenge.schema.json",
+  "id": "dbt-stage-orders",
+  "slug": "stage-orders",
+  "title": "Stage the raw orders",
+  "prompt": "Build a staging model `stg_orders` on top of the raw orders source. Read from the source with source('raw', 'orders') and return order_id, customer_id, amount, and a cleaned status (trimmed and lower-cased). Leave it as the default view materialization.",
+  "sources": [
+    "CREATE OR REPLACE TABLE raw_orders (order_id INTEGER, customer_id INTEGER, amount DECIMAL(10,2), status VARCHAR);",
+    "INSERT INTO raw_orders VALUES (1, 10, 50.00, ' Completed '), (2, 11, 30.00, 'CANCELLED'), (3, 10, 20.00, 'completed'), (4, 12, 99.00, 'Refunded ');"
+  ],
+  "target": "stg_orders",
+  "starter": {
+    "models/stg_orders.sql": [
+      "-- Read from the raw orders source and clean up the status.",
+      "select",
+      "  -- TODO: order_id, customer_id, amount, cleaned status",
+      "from {{ source('raw', 'orders') }}"
+    ]
+  },
+  "solution": {
+    "models/stg_orders.sql": [
+      "select",
+      "  order_id,",
+      "  customer_id,",
+      "  amount,",
+      "  lower(trim(status)) as status",
+      "from {{ source('raw', 'orders') }}"
+    ]
+  },
+  "grading": {},
+  "hints": [
+    "source('raw', 'orders') compiles to the raw_orders table.",
+    "Clean the status with lower(trim(status))."
+  ]
+}

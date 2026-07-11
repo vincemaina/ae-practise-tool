@@ -1,0 +1,41 @@
+{
+  "$schema": "../challenge.schema.json",
+  "id": "dbt-incremental-orders",
+  "slug": "incremental-orders",
+  "title": "Incremental orders mart",
+  "prompt": "Build an incremental model `orders_mart` from `stg_orders`. Materialize it as incremental with unique_key='order_id', and use is_incremental() so a run only processes rows newer than what's already loaded (updated_at greater than the max already in the model). It must end up matching a full rebuild after new and restated orders arrive.",
+  "sources": [
+    "CREATE OR REPLACE TABLE raw_orders (order_id INTEGER, customer_id INTEGER, amount DECIMAL(10,2), updated_at TIMESTAMP);",
+    "INSERT INTO raw_orders VALUES (1, 10, 50.00, TIMESTAMP '2026-01-01 09:00'), (2, 11, 30.00, TIMESTAMP '2026-01-01 10:00'), (3, 10, 20.00, TIMESTAMP '2026-01-02 08:00');"
+  ],
+  "increment": [
+    "INSERT INTO raw_orders VALUES (4, 12, 99.00, TIMESTAMP '2026-01-03 09:00'), (5, 11, 15.00, TIMESTAMP '2026-01-03 10:00'), (1, 10, 55.00, TIMESTAMP '2026-01-03 11:00');"
+  ],
+  "target": "orders_mart",
+  "starter": {
+    "models/stg_orders.sql": ["select order_id, customer_id, amount, updated_at", "from {{ source('raw', 'orders') }}"],
+    "models/orders_mart.sql": [
+      "-- Make this an incremental model keyed on order_id.",
+      "-- TODO: {{ config(...) }}",
+      "select order_id, customer_id, amount, updated_at",
+      "from {{ ref('stg_orders') }}",
+      "-- TODO: only new rows on an incremental run"
+    ]
+  },
+  "solution": {
+    "models/stg_orders.sql": ["select order_id, customer_id, amount, updated_at", "from {{ source('raw', 'orders') }}"],
+    "models/orders_mart.sql": [
+      "{{ config(materialized='incremental', unique_key='order_id') }}",
+      "select order_id, customer_id, amount, updated_at",
+      "from {{ ref('stg_orders') }}",
+      "{% if is_incremental() %}",
+      "where updated_at > (select max(updated_at) from {{ this }})",
+      "{% endif %}"
+    ]
+  },
+  "grading": {},
+  "hints": [
+    "Set the materialization: {{ config(materialized='incremental', unique_key='order_id') }}.",
+    "Guard the filter with {% if is_incremental() %} … {% endif %} and compare against {{ this }}."
+  ]
+}
