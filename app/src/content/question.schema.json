@@ -116,6 +116,38 @@
       ],
       "additionalProperties": false
     },
+    "messiness": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "nullRate": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "caseNoise": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "whitespace": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "duplicates": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "additionalProperties": false
+      }
+    },
     "hints": {
       "type": "array",
       "items": {

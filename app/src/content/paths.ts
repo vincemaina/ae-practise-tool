@@ -61,6 +61,19 @@ export const paths: LearningPath[] = [
     ],
   },
   {
+    id: 'messy-data',
+    title: 'Messy data',
+    description:
+      "Real tables are dirty — inconsistent case, stray whitespace, duplicates. The prompt won't tell you how it's messy; clean as you go.",
+    questionIds: [
+      'q-messy-distinct-customers',
+      'q-messy-completed-orders',
+      'q-messy-not-cancelled',
+      'q-messy-distinct-countries',
+      'q-distinct-events-dedup',
+    ],
+  },
+  {
     id: 'ae-interview',
     title: 'AE interview sprint',
     description: 'A hard, mixed set — funnels, cohorts, attribution, sessionisation — like a real analytics-engineering loop.',

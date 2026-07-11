@@ -1,5 +1,6 @@
 import type { GradeOptions } from '../grading/grade';
 import type { RequiredConstruct } from '../grading/requireConstruct';
+import type { MessinessSpec } from './messiness';
 
 /**
  * A question's `dialects` lists which SQL dialects it's *appropriate for*.
@@ -48,4 +49,7 @@ export interface Question {
    *  use a specific construct (checked on top of output-equivalence, so e.g. LIKE
    *  can't stand in for a question about STARTSWITH). See requireConstruct.ts. */
   requires?: RequiredConstruct;
+  /** Opt this question's dataset into deterministic "mess" (nulls, inconsistent
+   *  case, whitespace, duplicate rows) the solver must handle. See messiness.ts. */
+  messiness?: MessinessSpec;
 }

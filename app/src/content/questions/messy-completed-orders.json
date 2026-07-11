@@ -1,0 +1,27 @@
+{
+  "$schema": "../question.schema.json",
+  "id": "q-messy-completed-orders",
+  "slug": "messy-completed-orders",
+  "title": "Count completed orders (messy data)",
+  "prompt": "Heads up: this data is messy — you'll need to account for that. Count how many orders are completed. Single column: completed_orders.",
+  "difficulty": "medium",
+  "packs": ["Messy Data"],
+  "dialects": ["generic"],
+  "datasetId": "ecommerce",
+  "order": 66,
+  "canonical": {
+    "generic": [
+      "SELECT COUNT(*) AS completed_orders",
+      "FROM orders",
+      "WHERE LOWER(TRIM(status)) = 'completed'"
+    ]
+  },
+  "grading": {},
+  "messiness": {
+    "orders.status": { "caseNoise": 0.35, "whitespace": 0.35 }
+  },
+  "hints": [
+    "The values you're filtering on aren't stored consistently — normalise them before comparing.",
+    "TRIM() strips stray spaces and LOWER() ignores case: WHERE LOWER(TRIM(status)) = 'completed'."
+  ]
+}

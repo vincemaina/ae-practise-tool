@@ -50,6 +50,19 @@ const questionSchema = z
       .object({ pattern: z.string(), flags: z.string().optional(), message: z.string() })
       .strict()
       .optional(),
+    messiness: z
+      .record(
+        z.string(),
+        z
+          .object({
+            nullRate: z.number().min(0).max(1).optional(),
+            caseNoise: z.number().min(0).max(1).optional(),
+            whitespace: z.number().min(0).max(1).optional(),
+            duplicates: z.number().min(0).max(1).optional(),
+          })
+          .strict(),
+      )
+      .optional(),
     hints: z.array(z.string()).optional(),
     challengeType: z.enum(['write', 'debug']).optional(),
     starterSql: sqlText.optional(),
@@ -119,6 +132,7 @@ export function parseQuestion(raw: unknown, source: string): { question: Questio
           },
         }
       : {}),
+    ...(p.messiness ? { messiness: p.messiness } : {}),
   };
   return { question, order: p.order ?? 10_000 };
 }

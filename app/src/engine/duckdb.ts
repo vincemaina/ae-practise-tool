@@ -60,13 +60,22 @@ async function exec(conn: duckdb.AsyncDuckDBConnection, sql: string): Promise<vo
 }
 
 /** Seed the dataset if it isn't already loaded. Setup SQL must be idempotent
- *  (use CREATE OR REPLACE) so switching back and forth is safe. */
-export async function ensureDataset(datasetId: string, setupSql: string): Promise<void> {
+ *  (use CREATE OR REPLACE) so switching back and forth is safe. `messinessSql`
+ *  (per-question, applied after setup) dirties the data; `variant` keys the load
+ *  cache so switching between a clean and a messy question on the same dataset
+ *  re-seeds correctly. */
+export async function ensureDataset(
+  datasetId: string,
+  setupSql: string,
+  opts?: { messinessSql?: string[]; variant?: string },
+): Promise<void> {
   return serialize(async () => {
     const conn = await getConn();
-    if (loadedDataset !== datasetId) {
+    const key = opts?.variant ? `${datasetId}#${opts.variant}` : datasetId;
+    if (loadedDataset !== key) {
       await exec(conn, setupSql);
-      loadedDataset = datasetId;
+      for (const stmt of opts?.messinessSql ?? []) await conn.query(stmt);
+      loadedDataset = key;
     }
   });
 }

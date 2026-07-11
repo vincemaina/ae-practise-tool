@@ -53,6 +53,20 @@ test('marks a wrong answer incorrect', async ({ page }) => {
   await expect(page.getByTestId('verdict')).toHaveText('Incorrect');
 });
 
+test('active-statement highlight previews only while Ctrl/Cmd is held', async ({ page }) => {
+  await page.goto('/');
+  await page.getByTestId('q-customer-completed-revenue').click();
+  await typeSql(page, 'SELECT 1;\nSELECT 2');
+  // Not held → no run-preview highlight.
+  await expect(page.locator('.cm-active-statement')).toHaveCount(0);
+  // Hold the modifier → the statement at the cursor is previewed.
+  await page.keyboard.down('Control');
+  await expect(page.locator('.cm-active-statement').first()).toBeVisible();
+  // Release → gone again.
+  await page.keyboard.up('Control');
+  await expect(page.locator('.cm-active-statement')).toHaveCount(0);
+});
+
 test('filters the question list by difficulty', async ({ page }) => {
   await page.goto('/');
   await page.getByTestId('filter-difficulty').selectOption('hard');

@@ -12,6 +12,7 @@ import * as duckdb from '@duckdb/duckdb-wasm/dist/duckdb-node-blocking.cjs';
 import * as poly from '@polyglot-sql/sdk';
 import { tableToResultSet } from '../src/engine/result-mapping';
 import { fixupDuckDbSql } from '../src/engine/transpile';
+import { buildMessinessSql } from '../src/content/messiness';
 import { grade } from '../src/grading/grade';
 import { questions, getDataset, paths } from '../src/content/node';
 import { extractMetrics } from '../src/content/metrics';
@@ -67,6 +68,9 @@ for (const q of questions) {
   console.log(`\n${q.id} — ${q.title}`);
   const dataset = getDataset(q.datasetId);
   exec(dataset.setupSql);
+  // Apply the same per-question mess the app does, so the canonical is checked
+  // against the messy data the user will actually see (ADR 0003 + messiness.ts).
+  if (q.messiness) for (const s of buildMessinessSql(q.messiness)) conn.query(s);
 
   const canonical = (q.canonical.generic ?? '').trim();
   if (!canonical) {

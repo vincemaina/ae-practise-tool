@@ -50,6 +50,14 @@ test('solve — schema sample rows expanded', async ({ page }) => {
   await page.screenshot({ path: `${DIR}/08-schema-expanded.png`, fullPage: true });
 });
 
+test('messy question — schema shows the mess', async ({ page }) => {
+  await page.goto('/#/q/messy-completed-orders');
+  await expect(page.getByTestId('question-title')).toBeVisible();
+  await page.getByTestId('toggle-schema-data').click();
+  await page.waitForTimeout(800); // let messy sample data render
+  await page.screenshot({ path: `${DIR}/09-messy.png`, fullPage: true });
+});
+
 test('overview — dark', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('ae-practice:theme', 'dark'));
   await page.goto('/');

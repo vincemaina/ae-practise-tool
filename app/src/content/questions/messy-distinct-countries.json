@@ -1,0 +1,23 @@
+{
+  "$schema": "../question.schema.json",
+  "id": "q-messy-distinct-countries",
+  "slug": "messy-distinct-countries",
+  "title": "How many countries? (messy data)",
+  "prompt": "Heads up: this data is messy — you'll need to account for that. How many distinct countries do customers come from? Single column: countries.",
+  "difficulty": "medium",
+  "packs": ["Messy Data"],
+  "dialects": ["generic"],
+  "datasetId": "ecommerce",
+  "order": 69,
+  "canonical": {
+    "generic": ["SELECT COUNT(DISTINCT UPPER(TRIM(country))) AS countries", "FROM customers"]
+  },
+  "grading": {},
+  "messiness": {
+    "customers.country": { "caseNoise": 0.4, "whitespace": 0.4 }
+  },
+  "hints": [
+    "The same country is written a few different ways — normalise case and spacing before counting.",
+    "COUNT(DISTINCT UPPER(TRIM(country)))."
+  ]
+}

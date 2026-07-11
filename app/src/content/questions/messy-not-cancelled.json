@@ -1,0 +1,23 @@
+{
+  "$schema": "../question.schema.json",
+  "id": "q-messy-not-cancelled",
+  "slug": "messy-not-cancelled",
+  "title": "Orders that aren't cancelled (messy data)",
+  "prompt": "Heads up: this data is messy — you'll need to account for that. Count the orders that are NOT cancelled (treat a missing status as not cancelled). Single column: orders.",
+  "difficulty": "medium",
+  "packs": ["Messy Data"],
+  "dialects": ["generic"],
+  "datasetId": "ecommerce",
+  "order": 68,
+  "canonical": {
+    "generic": ["SELECT COUNT(*) AS orders", "FROM orders", "WHERE status IS DISTINCT FROM 'cancelled'"]
+  },
+  "grading": {},
+  "messiness": {
+    "orders.status": { "nullRate": 0.2 }
+  },
+  "hints": [
+    "Some rows have a missing status — and in SQL, `status <> 'cancelled'` quietly drops NULLs (they compare as UNKNOWN).",
+    "Count them with IS DISTINCT FROM: WHERE status IS DISTINCT FROM 'cancelled'."
+  ]
+}

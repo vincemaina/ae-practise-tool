@@ -1,0 +1,23 @@
+{
+  "$schema": "../question.schema.json",
+  "id": "q-messy-distinct-customers",
+  "slug": "messy-distinct-customers",
+  "title": "How many customers, really? (messy data)",
+  "prompt": "Heads up: this data is messy — you'll need to account for that. How many distinct customers are in the customers table? Single column: customers.",
+  "difficulty": "easy",
+  "packs": ["Messy Data"],
+  "dialects": ["generic"],
+  "datasetId": "ecommerce",
+  "order": 67,
+  "canonical": {
+    "generic": ["SELECT COUNT(DISTINCT customer_id) AS customers", "FROM customers"]
+  },
+  "grading": {},
+  "messiness": {
+    "customers.customer_id": { "duplicates": 0.2 }
+  },
+  "hints": [
+    "A plain COUNT(*) over-counts here — some rows appear more than once.",
+    "Count each customer once with COUNT(DISTINCT customer_id)."
+  ]
+}

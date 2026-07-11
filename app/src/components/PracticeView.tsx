@@ -3,6 +3,7 @@ import type { SQLNamespace } from '@codemirror/lang-sql';
 import confetti from 'canvas-confetti';
 import { getDataset, getMetrics } from '../content';
 import { metricTags } from '../content/metrics';
+import { buildMessinessSql } from '../content/messiness';
 import { DIALECT_OPTIONS, type DialectFilter } from '../content/dialects';
 import { logEvent } from '../dev/telemetry';
 import type { Question } from '../content/types';
@@ -100,7 +101,9 @@ export function PracticeView({
     let cancelled = false;
     (async () => {
       try {
-        await ensureDataset(dataset.id, dataset.setupSql);
+        const messinessSql = question.messiness ? buildMessinessSql(question.messiness) : undefined;
+        const variant = question.messiness ? JSON.stringify(question.messiness) : undefined;
+        await ensureDataset(dataset.id, dataset.setupSql, { messinessSql, variant });
         if (!cancelled) setReady(true);
       } catch (e) {
         if (!cancelled) setError(`Failed to load the SQL engine: ${String(e)}`);
@@ -109,7 +112,7 @@ export function PracticeView({
     return () => {
       cancelled = true;
     };
-  }, [dataset.id, dataset.setupSql]);
+  }, [dataset.id, dataset.setupSql, question.messiness]);
 
   useEffect(() => {
     logEvent('question_view', { questionId: question.id, detail: { slug: question.slug } });

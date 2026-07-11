@@ -1121,7 +1121,10 @@ pre.canonical {
 }
 
 /* Active-statement highlight (only shown when the worksheet has >1 query) */
-.cm-active-statement {
+/* Preview of the statement ⌘/Ctrl+Enter will run (shown while the modifier is
+   held). `.cm-line.cm-active-statement` out-specifies `.cm-activeLine` so the
+   accent tint wins over the grey current-line highlight. */
+.cm-line.cm-active-statement {
   background: var(--accent-soft);
   box-shadow: inset 3px 0 0 var(--accent);
 }
