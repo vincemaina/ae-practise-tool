@@ -188,52 +188,17 @@ export async function dbtInit(sourcesSql: string): Promise<SourceTable[]> {
   });
 }
 
-/** Render a result set as a fixed-width text table, for the terminal. */
-function formatResultTable(rs: ResultSet): string[] {
-  if (rs.columns.length === 0) return ['(no columns)'];
-  const headers = rs.columns.map((c) => c.name);
-  const cell = (c: Cell) => (c === null ? 'NULL' : String(c));
-  const widths = headers.map((h, i) => Math.max(h.length, ...rs.rows.map((r) => cell(r[i] ?? null).length)));
-  const fmt = (vals: string[]) => vals.map((v, i) => v.padEnd(widths[i]!)).join('  ');
-  const lines = [fmt(headers), fmt(widths.map((w) => '-'.repeat(w)))];
-  for (const r of rs.rows) lines.push(fmt(headers.map((_, i) => cell(r[i] ?? null))));
-  lines.push(`(${rs.rows.length} row${rs.rows.length === 1 ? '' : 's'})`);
-  return lines;
-}
-
-/** Run a Model-terminal command against the **persistent** `dbt_scratch` schema.
+/** Run a `dbt <command>` against the **persistent** `dbt_scratch` schema.
  *  `dbt compile` (and unknown `dbt` subcommands) render without touching the DB;
  *  `dbt run`/`build` materialize the user's models *without* resetting scratch
- *  (so incremental models persist between runs). Anything not starting with
- *  `dbt` is treated as a SQL query against scratch and its rows are tabulated —
- *  this is how users inspect a materialized model (`select * from orders_mart`). */
+ *  (so incremental models persist between runs). SQL queries go through
+ *  `dbtQuery` (the SQL console), not here — the terminal is dbt-only. */
 export async function dbtRunCommand(
   command: string,
   files: Record<string, string>,
 ): Promise<CommandResult> {
-  const trimmed = command.trim();
-  const first = trimmed.split(/\s+/)[0];
-
-  // Non-dbt input → run as SQL against the persistent scratch and tabulate.
-  if (first !== 'dbt') {
-    if (!trimmed) return { lines: [], ok: true };
-    return serialize(async () => {
-      const conn = await getConn();
-      await conn.query(`USE dbt_scratch`);
-      try {
-        const rs = tableToResultSet(await conn.query(trimmed));
-        return { lines: formatResultTable(rs), ok: true };
-      } catch (e) {
-        const msg = (e instanceof Error ? e.message.split('\n')[0] : String(e)) ?? '';
-        return { lines: [`ERROR ${msg.replace(/^\w*Error:\s*/, '')}`], ok: false };
-      } finally {
-        await conn.query(`USE main`);
-      }
-    });
-  }
-
-  const models = filesToModels(files);
-  const sub = trimmed.split(/\s+/)[1];
+  const models = filesToModels(command.trim() === '' ? {} : files);
+  const sub = command.trim().split(/\s+/)[1];
   // Only run/build touch the warehouse; compile + unknown commands stay DB-free.
   if (sub !== 'run' && sub !== 'build') {
     const noop: DbtRunner = { run: async () => {}, tableExists: async () => false };
@@ -250,6 +215,50 @@ export async function dbtRunCommand(
     } finally {
       await conn.query(`USE main`);
     }
+  });
+}
+
+/** Run arbitrary SQL against the persistent `dbt_scratch` schema (the Model
+ *  pillar's SQL console) so users can inspect their materialized models and the
+ *  seeded sources, e.g. `select * from orders_mart`. */
+export async function dbtQuery(sql: string): Promise<ResultSet> {
+  return serialize(async () => {
+    const conn = await getConn();
+    await conn.query(`USE dbt_scratch`);
+    try {
+      return tableToResultSet(await conn.query(sql));
+    } finally {
+      await conn.query(`USE main`);
+    }
+  });
+}
+
+export interface WarehouseObject {
+  name: string;
+  /** `table`/`view` = materialized by dbt; `source` = seeded raw input. */
+  kind: 'table' | 'view' | 'source';
+}
+
+/** List what physically exists in the persistent `dbt_scratch` warehouse — the
+ *  seeded sources plus any views/tables `dbt build` has materialized. `sources`
+ *  are the seeded raw-table names (so they're labelled distinctly from models). */
+export async function listWarehouseObjects(sources: string[]): Promise<WarehouseObject[]> {
+  const srcSet = new Set(sources);
+  return serialize(async () => {
+    const conn = await getConn();
+    const rows = (
+      await conn.query(
+        `SELECT table_name, table_type FROM information_schema.tables WHERE table_schema = 'dbt_scratch' ORDER BY table_name`,
+      )
+    ).toArray() as { table_name: string; table_type: string }[];
+    return rows.map((r) => ({
+      name: String(r.table_name),
+      kind: srcSet.has(String(r.table_name))
+        ? ('source' as const)
+        : /VIEW/i.test(r.table_type)
+          ? ('view' as const)
+          : ('table' as const),
+    }));
   });
 }
 

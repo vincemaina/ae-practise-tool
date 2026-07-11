@@ -53,7 +53,12 @@ export async function runDbtCommand(
 ): Promise<CommandResult> {
   const parts = command.trim().split(/\s+/).filter(Boolean);
   if (parts[0] !== 'dbt') {
-    return { lines: [`command not found: ${parts[0] ?? ''} — try 'dbt build', 'dbt run', or 'dbt compile'`], ok: false };
+    return {
+      lines: [
+        `command not found: ${parts[0] ?? ''} — this is the dbt terminal (try 'dbt build', 'dbt run', 'dbt compile'). To query the warehouse, use the SQL tab.`,
+      ],
+      ok: false,
+    };
   }
   const sub = parts[1];
   const fullRefresh = parts.includes('--full-refresh');

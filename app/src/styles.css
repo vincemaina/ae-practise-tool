@@ -1808,8 +1808,16 @@ pre.canonical {
 .dbt-sidebar {
   border-right: 1px solid var(--border);
   background: var(--surface-2);
-  overflow-y: auto;
   padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.dbt-tree-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .dbt-sidebar-head {
@@ -1817,6 +1825,113 @@ pre.canonical {
   align-items: center;
   justify-content: space-between;
   padding: 0.25rem 0.4rem 0.5rem;
+}
+
+.dbt-sidebar-actions {
+  display: flex;
+  gap: 0.15rem;
+}
+
+.dbt-instr-link {
+  margin-bottom: 0.25rem;
+}
+
+/* Folder rows in the file tree (feedback #16). */
+.dbt-dir {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.dbt-dir:hover {
+  background: var(--surface);
+}
+
+.dbt-dir-caret {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  width: 0.8rem;
+  display: inline-block;
+}
+
+/* Warehouse objects panel — what physically exists in the scratch schema (#16). */
+.dbt-warehouse {
+  flex: none;
+  border-top: 1px solid var(--border);
+  padding-top: 0.5rem;
+  margin-top: 0.4rem;
+  max-height: 34%;
+  overflow-y: auto;
+}
+
+.dbt-obj-list {
+  list-style: none;
+  margin: 0.3rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.dbt-obj-empty {
+  padding: 0.2rem 0.5rem;
+  font-size: 0.78rem;
+}
+
+.dbt-obj {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  padding: 0.28rem 0.5rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.dbt-obj:hover {
+  background: var(--surface);
+}
+
+.dbt-obj-icon {
+  color: var(--text-muted);
+}
+
+.dbt-obj-icon.source {
+  color: var(--accent);
+}
+
+.dbt-obj-icon.table {
+  color: var(--ok, #1a7f3c);
+}
+
+.dbt-obj-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dbt-obj-kind {
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 .dbt-filetree {
@@ -1981,12 +2096,12 @@ pre.canonical {
   margin: 0.6rem 0 1.2rem;
 }
 
-/* Collapsible terminal drawer (feedback #9). */
+/* Collapsible bottom drawer: Terminal + SQL console. Follows the theme (#14). */
 .dbt-terminal {
   flex: none;
   border-top: 1px solid var(--border-strong);
-  background: #0e1014;
-  color: #d6d9de;
+  background: var(--surface);
+  color: var(--text);
   display: flex;
   flex-direction: column;
   font-family: var(--font-mono);
@@ -1994,27 +2109,51 @@ pre.canonical {
 }
 
 .dbt-terminal.open {
-  height: 38%;
-  min-height: 150px;
+  height: 40%;
+  min-height: 160px;
 }
 
 .dbt-term-header {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: space-between;
   width: 100%;
-  border: none;
-  background: #161a20;
-  color: #9aa3b1;
-  font: inherit;
-  font-weight: 600;
-  padding: 0.35rem 0.8rem;
-  cursor: pointer;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
   flex: none;
 }
 
-.dbt-term-caret {
-  color: #6b7280;
+.dbt-term-tabs {
+  display: flex;
+}
+
+.dbt-term-tab {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-weight: 600;
+  padding: 0.4rem 0.9rem;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+
+.dbt-term-tab:hover {
+  color: var(--text);
+}
+
+.dbt-term-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.dbt-term-collapse {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0 0.8rem;
+  font-size: 0.9rem;
 }
 
 .dbt-term-log {
@@ -2026,30 +2165,50 @@ pre.canonical {
 }
 
 .dbt-term-log .term-cmd {
-  color: #8b85f5;
+  color: var(--accent);
 }
 
-.dbt-term-log .term-err {
-  color: #f08c8c;
+.dbt-term-log .term-err,
+.dbt-sql-err {
+  color: var(--danger);
+}
+
+.dbt-sql-results {
+  flex: 1;
+  overflow: auto;
+  padding: 0.5rem 0.8rem;
+}
+
+.dbt-sql-hint {
+  padding: 0.3rem 0;
+  font-size: 0.8rem;
+}
+
+.dbt-sql-hint code {
+  font-family: var(--font-mono);
 }
 
 .dbt-term-input {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  border-top: 1px solid #2a303b;
+  border-top: 1px solid var(--border);
   padding: 0.4rem 0.8rem;
 }
 
 .term-prompt {
-  color: #8b85f5;
+  color: var(--accent);
+}
+
+.term-prompt.sql {
+  color: var(--text-muted);
 }
 
 .dbt-term-input input {
   flex: 1;
   border: none;
   background: transparent;
-  color: inherit;
+  color: var(--text);
   font: inherit;
   outline: none;
 }

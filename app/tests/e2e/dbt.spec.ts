@@ -109,11 +109,25 @@ test('dbt IDE: incremental persists across runs; SQL queries show materialized d
   await input.press('Enter');
   await expect(term).toContainText('(incremental)', { timeout: 60_000 });
 
-  // A plain SQL query inspects the materialized model's rows.
-  await input.fill('select order_id, amount from orders_mart order by order_id');
-  await input.press('Enter');
-  await expect(term).toContainText('order_id', { timeout: 60_000 });
-  await expect(term).toContainText('(3 rows)');
+  // The Warehouse panel lists the materialized model...
+  await expect(page.getByTestId('dbt-warehouse')).toContainText('orders_mart');
+
+  // ...and the SQL console inspects its rows.
+  await page.getByTestId('dbt-bottom-tab-sql').click();
+  await page.getByTestId('dbt-sql-input').fill('select order_id, amount from orders_mart order by order_id');
+  await page.getByTestId('dbt-sql-input').press('Enter');
+  const results = page.getByTestId('dbt-sql-results');
+  await expect(results).toContainText('order_id', { timeout: 60_000 });
+  await expect(results.locator('tbody tr')).toHaveCount(3);
+});
+
+test('dbt IDE: clicking a Warehouse object queries it in the SQL console', async ({ page }) => {
+  await page.goto('/#/model/stage-orders');
+  // Sources are present from the start, before any build.
+  await page.getByTestId('wh-raw-orders').click();
+  const results = page.getByTestId('dbt-sql-results');
+  await expect(page.getByTestId('dbt-sql-input')).toHaveValue(/select \* from raw_orders/);
+  await expect(results).toContainText('order_id', { timeout: 60_000 });
 });
 
 test('dbt IDE: a table instead of an incremental model is Incorrect', async ({ page }) => {
