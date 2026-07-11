@@ -22,13 +22,7 @@
   ],
   "starter": {
     "models/stg_orders.sql": ["select order_id, customer_id, amount, updated_at", "from {{ source('raw', 'orders') }}"],
-    "models/orders_mart.sql": [
-      "-- Make this an incremental model keyed on order_id.",
-      "-- TODO: {{ config(...) }}",
-      "select order_id, customer_id, amount, updated_at",
-      "from {{ ref('stg_orders') }}",
-      "-- TODO: only new rows on an incremental run"
-    ]
+    "models/orders_mart.sql": ["-- Build the incremental orders_mart from ref('stg_orders')."]
   },
   "solution": {
     "models/stg_orders.sql": ["select order_id, customer_id, amount, updated_at", "from {{ source('raw', 'orders') }}"],

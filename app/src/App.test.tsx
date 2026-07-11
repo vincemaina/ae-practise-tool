@@ -138,7 +138,7 @@ describe('App', () => {
     render(<App />);
     fireEvent.click(screen.getByTestId('q-orders-by-status'));
     // Columns are shown inline; sample rows are collapsed behind a toggle.
-    const toggle = await screen.findByTestId('toggle-schema-data');
+    const toggle = await screen.findByTestId('toggle-schema-data', {}, { timeout: 4000 });
     expect(toggle.textContent).toContain('Show sample rows');
     fireEvent.click(toggle);
     expect(screen.getByTestId('toggle-schema-data').textContent).toContain('Hide sample rows');

@@ -117,6 +117,8 @@ export interface BuildResult {
   order: string[];
   /** Final compiled SQL per built model. */
   compiled: Record<string, string>;
+  /** Models built via the incremental path (existing table, not full-refresh). */
+  incremental: string[];
 }
 
 const cteName = (name: string) => `__cte__${name}`;
@@ -158,7 +160,7 @@ export async function build(
   }
 
   const sourceRelation = (s: string, t: string) => opts.sources?.[`${s}.${t}`] ?? `${s}_${t}`;
-  const result: BuildResult = { order: [], compiled: {} };
+  const result: BuildResult = { order: [], compiled: {}, incremental: [] };
 
   for (const c of topoSort(compiled)) {
     if (c.materialized === 'ephemeral') continue; // inlined into consumers, not built
@@ -175,24 +177,30 @@ export async function build(
     const bodySql = renderModel(c, { isIncremental, refRelation, sourceRelation });
     const sql = ctes.length ? `WITH ${ctes.join(', ')} ${bodySql}` : bodySql;
     result.compiled[c.name] = sql;
-    result.order.push(c.name);
 
-    if (c.materialized === 'view') {
-      await runner.run(`CREATE OR REPLACE VIEW ${c.name} AS ${sql}`);
-    } else if (c.materialized === 'table') {
-      await runner.run(`CREATE OR REPLACE TABLE ${c.name} AS ${sql}`);
-    } else if (!isIncremental) {
-      await runner.run(`CREATE OR REPLACE TABLE ${c.name} AS ${sql}`);
-    } else if (c.uniqueKey) {
-      // delete+insert upsert
-      await runner.run(`CREATE OR REPLACE TEMP TABLE __dbt_inc AS ${sql}`);
-      await runner.run(`DELETE FROM ${c.name} WHERE ${c.uniqueKey} IN (SELECT ${c.uniqueKey} FROM __dbt_inc)`);
-      await runner.run(`INSERT INTO ${c.name} SELECT * FROM __dbt_inc`);
-      await runner.run(`DROP TABLE __dbt_inc`);
-    } else {
-      // append strategy (no unique_key)
-      await runner.run(`INSERT INTO ${c.name} ${sql}`);
+    try {
+      if (c.materialized === 'view') {
+        await runner.run(`CREATE OR REPLACE VIEW ${c.name} AS ${sql}`);
+      } else if (c.materialized === 'table') {
+        await runner.run(`CREATE OR REPLACE TABLE ${c.name} AS ${sql}`);
+      } else if (!isIncremental) {
+        await runner.run(`CREATE OR REPLACE TABLE ${c.name} AS ${sql}`);
+      } else if (c.uniqueKey) {
+        // delete+insert upsert
+        await runner.run(`CREATE OR REPLACE TEMP TABLE __dbt_inc AS ${sql}`);
+        await runner.run(`DELETE FROM ${c.name} WHERE ${c.uniqueKey} IN (SELECT ${c.uniqueKey} FROM __dbt_inc)`);
+        await runner.run(`INSERT INTO ${c.name} SELECT * FROM __dbt_inc`);
+        await runner.run(`DROP TABLE __dbt_inc`);
+      } else {
+        // append strategy (no unique_key)
+        await runner.run(`INSERT INTO ${c.name} ${sql}`);
+      }
+    } catch (e) {
+      const msg = (e instanceof Error ? e.message.split('\n')[0] : String(e)) ?? '';
+      throw new DbtError(`model ${c.name}: ${msg.replace(/^\w*Error:\s*/, '')}`);
     }
+    result.order.push(c.name);
+    if (isIncremental) result.incremental.push(c.name);
   }
   return result;
 }

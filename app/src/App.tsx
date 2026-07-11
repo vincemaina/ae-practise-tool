@@ -223,7 +223,7 @@ export default function App() {
       />
       {isModel ? (
         modelChallenge ? (
-          <DbtWorkspace challenge={modelChallenge} dark={theme === 'dark'} />
+          <DbtWorkspace key={modelChallenge.id} challenge={modelChallenge} dark={theme === 'dark'} />
         ) : (
           <DbtChallengeList challenges={challenges} onOpen={(slug) => navigate(`/model/${slug}`)} />
         )

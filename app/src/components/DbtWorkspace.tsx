@@ -1,172 +1,393 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent, type MouseEvent as ReactMouseEvent } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import { sql } from '@codemirror/lang-sql';
 import { EditorView } from '@codemirror/view';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { duckdbDialect } from '../editor/sqlDialect';
-import { buildDbtTarget } from '../engine/duckdb';
+import {
+  buildDbtTarget,
+  dbtRunCommand,
+  dbtInit,
+  type SourceTable,
+} from '../engine/duckdb';
 import { gradeSubmission, type DbtChallenge, type DbtGradeResult } from '../dbt';
-import type { ResultSet } from '../grading/types';
-import { ResultsTable } from './ResultsTable';
+import { formatCell, isNumeric } from './formatCell';
 
-/** The multi-file dbt modelling environment: edit model files, Build & grade
- *  against the reference solution (output + structural checks). */
+const INSTRUCTIONS = '__instructions__';
+
+/** A file-tree + tabbed-editor + terminal mini-IDE for a dbt challenge. Iterate
+ *  with `dbt run/build/compile` in the terminal; Submit builds the project and
+ *  grades it (output + structural) against the hidden reference solution. */
+interface Saved {
+  files?: Record<string, string>;
+  history?: string[];
+  term?: string[];
+  sidebarWidth?: number;
+}
+
 export function DbtWorkspace({ challenge, dark }: { challenge: DbtChallenge; dark: boolean }) {
-  const paths = useMemo(() => Object.keys(challenge.starter), [challenge]);
-  const [files, setFiles] = useState<Record<string, string>>(() => ({ ...challenge.starter }));
-  const [active, setActive] = useState(paths[0]!);
-  const [busy, setBusy] = useState(false);
+  // Persist the working state (files, history, terminal, layout) per challenge so
+  // it survives reloads (feedback #12). Mounted with key={challenge.id} in App, so
+  // these initializers run fresh per challenge.
+  const storageKey = `ae-practice:dbt:${challenge.id}`;
+  const [saved] = useState<Saved>(() => {
+    try {
+      const raw = localStorage.getItem(storageKey);
+      return raw ? (JSON.parse(raw) as Saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const [files, setFiles] = useState<Record<string, string>>(() => saved.files ?? { ...challenge.starter });
+  const [openTabs, setOpenTabs] = useState<string[]>([INSTRUCTIONS, ...Object.keys(files)]);
+  const [active, setActive] = useState<string>(INSTRUCTIONS);
+  const [newName, setNewName] = useState<string | null>(null);
+
+  const [term, setTerm] = useState<string[]>(
+    () =>
+      saved.term ?? [
+        'mini-dbt terminal — try `dbt build` or `dbt compile`.',
+        'Run SQL against your models to inspect them, e.g. `select * from stg_orders limit 10`.',
+      ],
+  );
+  const [cmd, setCmd] = useState('');
+  const [running, setRunning] = useState(false);
+  const [termOpen, setTermOpen] = useState(true);
+  const [history, setHistory] = useState<string[]>(() => saved.history ?? []);
+  const histIdx = useRef(-1); // -1 = the live input; 0 = most recent, higher = older
+  const termRef = useRef<HTMLDivElement>(null);
+
+  const [sidebarWidth, setSidebarWidth] = useState<number>(() => saved.sidebarWidth ?? 220);
+  const ideRef = useRef<HTMLDivElement>(null);
+
+  const [sources, setSources] = useState<SourceTable[] | null>(null);
   const [verdict, setVerdict] = useState<DbtGradeResult | null>(null);
-  const [output, setOutput] = useState<ResultSet | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [showSolution, setShowSolution] = useState(false);
-  const [hintCount, setHintCount] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
 
-  const hints = challenge.hints ?? [];
-  const shown = showSolution ? challenge.solution : files;
+  useEffect(() => {
+    try {
+      localStorage.setItem(storageKey, JSON.stringify({ files, history, term, sidebarWidth }));
+    } catch {
+      /* best-effort */
+    }
+  }, [files, history, term, sidebarWidth, storageKey]);
 
-  async function buildAndGrade() {
-    setBusy(true);
-    setError(null);
+  function startResize(e: ReactMouseEvent) {
+    e.preventDefault();
+    const onMove = (ev: globalThis.MouseEvent) => {
+      const left = ideRef.current?.getBoundingClientRect().left ?? 0;
+      setSidebarWidth(Math.max(150, Math.min(460, ev.clientX - left)));
+    };
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      document.body.style.cursor = '';
+    };
+    document.body.style.cursor = 'col-resize';
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }
+
+  // Seed the terminal's persistent scratch schema once per challenge, and grab
+  // the source previews for Instructions. The schema then survives across
+  // `dbt run`/`build` so incremental models rebuild incrementally (feedback #13).
+  useEffect(() => {
+    let cancelled = false;
+    dbtInit(challenge.sources)
+      .then((s) => !cancelled && setSources(s))
+      .catch(() => !cancelled && setSources([]));
+    return () => {
+      cancelled = true;
+    };
+  }, [challenge.sources]);
+
+  useEffect(() => {
+    termRef.current?.scrollTo({ top: termRef.current.scrollHeight });
+  }, [term]);
+
+  const openTab = (path: string) => {
+    setOpenTabs((t) => (t.includes(path) ? t : [...t, path]));
+    setActive(path);
+  };
+  const closeTab = (path: string) => {
+    setOpenTabs((tabs) => {
+      const next = tabs.filter((t) => t !== path);
+      if (active === path) setActive(next[next.length - 1] ?? INSTRUCTIONS);
+      return next;
+    });
+  };
+  const addFile = (path: string) => {
+    const p = path.trim();
+    if (!p || files[p] !== undefined) return;
+    setFiles((f) => ({ ...f, [p]: '' }));
+    openTab(p);
+    setNewName(null);
+  };
+  const deleteFile = (path: string) => {
+    setFiles((f) => {
+      const rest = { ...f };
+      delete rest[path];
+      return rest;
+    });
+    closeTab(path);
+  };
+
+  async function run() {
+    const c = cmd.trim();
+    if (!c || running) return;
+    setHistory((h) => (h[h.length - 1] === c ? h : [...h, c]));
+    histIdx.current = -1;
+    setTerm((t) => [...t, `$ ${c}`]);
+    setCmd('');
+    setRunning(true);
+    try {
+      const res = await dbtRunCommand(c, files);
+      setTerm((t) => [...t, ...res.lines]);
+    } catch (e) {
+      setTerm((t) => [...t, `error: ${String(e).split('\n')[0]}`]);
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  async function submit() {
+    setSubmitting(true);
     setVerdict(null);
-    setOutput(null);
     try {
       const expected = await buildDbtTarget(challenge, challenge.solution);
       const got = await buildDbtTarget(challenge, files);
-      setOutput(got);
-      setVerdict(
-        gradeSubmission(expected, got, {
-          grading: challenge.grading,
-          checks: challenge.checks,
-          files,
-        }),
-      );
+      const v = gradeSubmission(expected, got, {
+        grading: challenge.grading,
+        checks: challenge.checks,
+        files,
+      });
+      setVerdict(v);
     } catch (e) {
-      setError(String(e));
+      setVerdict({ correct: false, reasons: [`Build failed: ${String(e).split('\n')[0]}`] });
     } finally {
-      setBusy(false);
+      setSubmitting(false);
+    }
+  }
+
+  const tabLabel = (t: string) => (t === INSTRUCTIONS ? 'Instructions' : t.replace(/^models\//, ''));
+
+  function onTermKey(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter') {
+      void run();
+    } else if (e.key === 'ArrowUp') {
+      if (history.length === 0) return;
+      e.preventDefault();
+      histIdx.current = Math.min(histIdx.current + 1, history.length - 1);
+      setCmd(history[history.length - 1 - histIdx.current] ?? '');
+    } else if (e.key === 'ArrowDown') {
+      if (histIdx.current < 0) return;
+      e.preventDefault();
+      histIdx.current -= 1;
+      setCmd(histIdx.current < 0 ? '' : (history[history.length - 1 - histIdx.current] ?? ''));
     }
   }
 
   return (
-    <main className="page solve-page dbt-page">
-      <div className="solve-grid">
-        <section className="solve-left">
-          <div className="card">
-            <div className="problem-head">
-              <h2 data-testid="challenge-title">{challenge.title}</h2>
-              <span className="badge badge-debug">dbt</span>
+    <main className="page dbt-ide-page">
+      <div
+        className="dbt-ide"
+        ref={ideRef}
+        style={{ gridTemplateColumns: `${sidebarWidth}px 5px minmax(0, 1fr)` }}
+      >
+        <aside className="dbt-sidebar">
+          <div className="dbt-sidebar-head">
+            <span className="section-label">Project</span>
+            <button className="icon-btn" title="New file" onClick={() => setNewName('')} data-testid="dbt-newfile">
+              +
+            </button>
+          </div>
+          <ul className="dbt-filetree">
+            <li>
+              <button
+                className={`dbt-file ${active === INSTRUCTIONS ? 'active' : ''}`}
+                onClick={() => openTab(INSTRUCTIONS)}
+              >
+                📄 Instructions
+              </button>
+            </li>
+            {Object.keys(files)
+              .sort()
+              .map((p) => (
+                <li key={p} className="dbt-file-row">
+                  <button
+                    className={`dbt-file ${active === p ? 'active' : ''}`}
+                    onClick={() => openTab(p)}
+                    data-testid={`tree-${p.replace(/[^a-z]/gi, '-')}`}
+                  >
+                    {p}
+                  </button>
+                  <button className="dbt-file-del" title="Delete" onClick={() => deleteFile(p)}>
+                    ×
+                  </button>
+                </li>
+              ))}
+            {newName !== null && (
+              <li>
+                <input
+                  autoFocus
+                  className="dbt-newfile-input"
+                  placeholder="models/new_model.sql"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && addFile(newName)}
+                  onBlur={() => (newName ? addFile(newName) : setNewName(null))}
+                  data-testid="dbt-newfile-input"
+                />
+              </li>
+            )}
+          </ul>
+        </aside>
+
+        <div
+          className="dbt-resizer"
+          onMouseDown={startResize}
+          role="separator"
+          aria-orientation="vertical"
+          data-testid="dbt-resizer"
+        />
+
+        <div className="dbt-main">
+          <div className="dbt-tabbar">
+            <div className="file-tabs">
+              {openTabs.map((t) => (
+                <span key={t} className={`file-tab ${active === t ? 'active' : ''}`}>
+                  <button className="file-tab-btn" onClick={() => setActive(t)} data-testid={`tab-${t.replace(/[^a-z]/gi, '-')}`}>
+                    {tabLabel(t)}
+                  </button>
+                  {t !== INSTRUCTIONS && (
+                    <button className="file-tab-x" onClick={() => closeTab(t)}>
+                      ×
+                    </button>
+                  )}
+                </span>
+              ))}
             </div>
-            <p className="prompt">{challenge.prompt}</p>
+            <button className="primary dbt-submit" onClick={submit} disabled={submitting} data-testid="dbt-submit">
+              {submitting ? 'Grading…' : 'Submit'}
+            </button>
           </div>
 
-          {hints.length > 0 && (
-            <div className="card hints">
-              <div className="card-head">
-                <span className="section-label">Hints</span>
-                {hintCount < hints.length && (
-                  <button onClick={() => setHintCount((n) => n + 1)}>
-                    {hintCount === 0 ? 'Show hint' : 'Next hint'}
-                  </button>
-                )}
-              </div>
-              {hintCount > 0 ? (
-                <ol>
-                  {hints.slice(0, hintCount).map((h, i) => (
-                    <li key={i}>{h}</li>
+          {verdict && (
+            <div className={`dbt-verdict-bar ${verdict.correct ? 'ok' : 'bad'}`} data-testid="dbt-verdict">
+              <strong>{verdict.correct ? '✓ Correct' : '✗ Incorrect'}</strong>
+              {verdict.reasons.length > 0 && (
+                <ul data-testid="dbt-reasons">
+                  {verdict.reasons.map((r, i) => (
+                    <li key={i}>{r}</li>
                   ))}
-                </ol>
-              ) : (
-                <p className="muted">Stuck? Reveal hints one at a time.</p>
+                </ul>
               )}
             </div>
           )}
-        </section>
 
-        <section className="solve-right">
-          <div className="editor-toolbar dbt-toolbar">
-            <div className="file-tabs" role="tablist">
-              {paths.map((p) => (
-                <button
-                  key={p}
-                  role="tab"
-                  aria-selected={active === p}
-                  className={`file-tab ${active === p ? 'active' : ''}`}
-                  onClick={() => setActive(p)}
-                  data-testid={`file-${p.replace(/[^a-z]/gi, '-')}`}
-                >
-                  {p.replace(/^models\//, '')}
-                </button>
+          <div className="dbt-editor-area">
+            {active === INSTRUCTIONS ? (
+              <Instructions challenge={challenge} sources={sources} />
+            ) : (
+              <CodeMirror
+                key={active}
+                value={files[active] ?? ''}
+                onChange={(v) => setFiles((f) => ({ ...f, [active]: v }))}
+                extensions={[sql({ dialect: duckdbDialect, upperCaseKeywords: false }), EditorView.lineWrapping]}
+                theme={dark ? oneDark : 'light'}
+                height="100%"
+              />
+            )}
+          </div>
+
+          <div className={`dbt-terminal ${termOpen ? 'open' : ''}`}>
+            <button className="dbt-term-header" onClick={() => setTermOpen((o) => !o)} data-testid="dbt-term-toggle">
+              <span>Terminal</span>
+              <span className="dbt-term-caret">{termOpen ? '▾' : '▴'}</span>
+            </button>
+            {termOpen && (
+              <>
+            <div className="dbt-term-log" ref={termRef} data-testid="dbt-terminal">
+              {term.map((line, i) => (
+                <div key={i} className={line.startsWith('$') ? 'term-cmd' : line.includes('ERROR') ? 'term-err' : ''}>
+                  {line || ' '}
+                </div>
               ))}
             </div>
-            <span className="toolbar-right">
-              <button onClick={() => setShowSolution((s) => !s)} data-testid="dbt-solution">
-                {showSolution ? 'Hide solution' : 'Solution'}
-              </button>
-              <button className="primary" onClick={buildAndGrade} disabled={busy} data-testid="dbt-build">
-                {busy ? 'Building…' : 'Build & grade'}
-              </button>
-            </span>
-          </div>
-
-          <div className="editor-fill">
-            <CodeMirror
-              key={active + (showSolution ? ':sol' : '')}
-              value={shown[active] ?? ''}
-              onChange={(v) => !showSolution && setFiles((f) => ({ ...f, [active]: v }))}
-              editable={!showSolution}
-              extensions={[sql({ dialect: duckdbDialect, upperCaseKeywords: false }), EditorView.lineWrapping]}
-              theme={dark ? oneDark : 'light'}
-              height="100%"
-            />
-          </div>
-
-          <div className="output-drawer open dbt-output">
-            <div className="drawer-body">
-              {error && (
-                <div className="error" data-testid="dbt-error">
-                  {error}
-                </div>
-              )}
-              {verdict && (
-                <div className={`verdict ${verdict.correct ? 'correct' : 'incorrect'}`}>
-                  <span className="verdict-icon">{verdict.correct ? '✓' : '✕'}</span>
-                  <div>
-                    <strong data-testid="dbt-verdict">{verdict.correct ? 'Correct' : 'Incorrect'}</strong>
-                    {verdict.reasons.length > 0 && (
-                      <ul data-testid="dbt-reasons">
-                        {verdict.reasons.map((r, i) => (
-                          <li key={i} className="muted">
-                            {r}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                </div>
-              )}
-              {output && (
-                <div className="output-section">
-                  <div className="card-head">
-                    <strong>
-                      Built <code>{challenge.target}</code>
-                    </strong>
-                    <span className="muted">{output.rows.length} row(s)</span>
-                  </div>
-                  <div className="results-wrap">
-                    <ResultsTable data={output} testId="dbt-results" />
-                  </div>
-                </div>
-              )}
-              {!error && !verdict && !output && (
-                <p className="muted">
-                  Edit the model files, then <strong>Build &amp; grade</strong> to run the project.
-                </p>
-              )}
+            <div className="dbt-term-input">
+              <span className="term-prompt">$</span>
+              <input
+                value={cmd}
+                onChange={(e) => setCmd(e.target.value)}
+                onKeyDown={onTermKey}
+                placeholder="dbt build"
+                spellCheck={false}
+                disabled={running}
+                data-testid="dbt-terminal-input"
+              />
             </div>
+              </>
+            )}
           </div>
-        </section>
+        </div>
       </div>
     </main>
+  );
+}
+
+function Instructions({ challenge, sources }: { challenge: DbtChallenge; sources: SourceTable[] | null }) {
+  return (
+    <div className="dbt-instructions">
+      <h2 data-testid="challenge-title">{challenge.title}</h2>
+      <p className="prompt">{challenge.prompt}</p>
+
+      {challenge.hints && challenge.hints.length > 0 && (
+        <details className="dbt-hints">
+          <summary>Hints</summary>
+          <ol>
+            {challenge.hints.map((h, i) => (
+              <li key={i}>{h}</li>
+            ))}
+          </ol>
+        </details>
+      )}
+
+      <span className="section-label">Source data</span>
+      {!sources && <p className="muted">Loading source data…</p>}
+      {sources?.map((t) => (
+        <div key={t.name} className="schema-table">
+          <div className="schema-line">
+            <span className="schema-tname mono">{t.name}</span>
+            <span className="schema-cols mono">{t.columns.map((c) => c.name).join(', ')}</span>
+          </div>
+          <div className="results-wrap schema-sample">
+            <table className="results-table">
+              <thead>
+                <tr>
+                  {t.columns.map((c, i) => (
+                    <th key={i}>
+                      <span className="col-name">{c.name}</span>
+                      {c.type && <span className="col-type">{c.type.toLowerCase()}</span>}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {t.rows.map((row, ri) => (
+                  <tr key={ri}>
+                    {row.map((cell, ci) => (
+                      <td key={ci} className={isNumeric(cell) ? 'num' : undefined}>
+                        {cell === null || cell === undefined ? <span className="null">NULL</span> : formatCell(cell)}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }

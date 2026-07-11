@@ -17,12 +17,7 @@
     }
   ],
   "starter": {
-    "models/stg_orders.sql": [
-      "-- Read from the raw orders source and clean up the status.",
-      "select",
-      "  -- TODO: order_id, customer_id, amount, cleaned status",
-      "from {{ source('raw', 'orders') }}"
-    ]
+    "models/stg_orders.sql": ["-- Build the stg_orders model here."]
   },
   "solution": {
     "models/stg_orders.sql": [

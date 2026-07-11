@@ -3,8 +3,10 @@ import type { ResultSet } from '../grading/types';
 import type { DialectFilter } from '../content/dialects';
 import { tableToResultSet } from './result-mapping';
 import { toDuckDB } from './transpile';
-import { buildChallenge, type DbtChallenge } from '../dbt/challenge';
+import { buildChallenge, filesToModels, type DbtChallenge } from '../dbt/challenge';
 import type { DbtRunner } from '../dbt/engine';
+import { runDbtCommand, type CommandResult } from '../dbt/commands';
+import type { Cell } from '../grading/types';
 
 let dbPromise: Promise<duckdb.AsyncDuckDB> | null = null;
 let connPromise: Promise<duckdb.AsyncDuckDBConnection> | null = null;
@@ -94,10 +96,33 @@ export async function runQuery(sql: string, dialect: DialectFilter = 'all'): Pro
   });
 }
 
+const dbtStatements = (sql: string) =>
+  sql
+    .split(';')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+/** A `DbtRunner` bound to a specific schema (so builds land there, and
+ *  `tableExists` — which drives the incremental path — checks that schema). */
+function schemaRunner(conn: duckdb.AsyncDuckDBConnection, schema: string): DbtRunner {
+  return {
+    run: async (sql) => {
+      await conn.query(sql);
+    },
+    tableExists: async (name) =>
+      (
+        await conn.query(
+          `SELECT 1 FROM information_schema.tables WHERE table_schema = '${schema}' AND table_name = '${name}'`,
+        )
+      ).toArray().length > 0,
+  };
+}
+
 /**
  * Build a dbt challenge's model `files` and return its target model's rows. Runs
- * in an isolated `dbt_scratch` schema (dropped afterwards) so it never disturbs
- * the question datasets in the default schema. Used by the Model pillar (dbt).
+ * in an isolated, single-use `dbt_grade` schema (dropped afterwards) so grading
+ * never disturbs the question datasets *or* the terminal's persistent scratch
+ * (below). Used by the Model pillar's Submit. Always a full build.
  */
 export async function buildDbtTarget(
   challenge: Pick<DbtChallenge, 'sources' | 'increment' | 'target'>,
@@ -105,26 +130,125 @@ export async function buildDbtTarget(
 ): Promise<ResultSet> {
   return serialize(async () => {
     const conn = await getConn();
+    await conn.query(`DROP SCHEMA IF EXISTS dbt_grade CASCADE`);
+    await conn.query(`CREATE SCHEMA dbt_grade`);
+    await conn.query(`USE dbt_grade`);
+    try {
+      await buildChallenge(schemaRunner(conn, 'dbt_grade'), challenge, files);
+      return tableToResultSet(await conn.query(`SELECT * FROM ${challenge.target}`));
+    } finally {
+      await conn.query(`USE main`);
+      await conn.query(`DROP SCHEMA IF EXISTS dbt_grade CASCADE`);
+    }
+  });
+}
+
+export interface SourceTable {
+  name: string;
+  columns: { name: string; type: string }[];
+  rows: Cell[][];
+}
+
+/** (Re)seed the terminal's **persistent** `dbt_scratch` schema from a challenge's
+ *  sources and return each raw table's columns + sample rows (for Instructions).
+ *  Called once when a challenge's workspace mounts. The schema then survives
+ *  across `dbt run`/`build` invocations so incremental models actually persist
+ *  and rebuild incrementally the second time around. */
+export async function dbtInit(sourcesSql: string): Promise<SourceTable[]> {
+  return serialize(async () => {
+    const conn = await getConn();
     await conn.query(`DROP SCHEMA IF EXISTS dbt_scratch CASCADE`);
     await conn.query(`CREATE SCHEMA dbt_scratch`);
     await conn.query(`USE dbt_scratch`);
     try {
-      const runner: DbtRunner = {
-        run: async (sql) => {
-          await conn.query(sql);
-        },
-        tableExists: async (name) =>
-          (
-            await conn.query(
-              `SELECT 1 FROM information_schema.tables WHERE table_schema = 'dbt_scratch' AND table_name = '${name}'`,
-            )
-          ).toArray().length > 0,
-      };
-      await buildChallenge(runner, challenge, files);
-      return tableToResultSet(await conn.query(`SELECT * FROM ${challenge.target}`));
+      for (const stmt of dbtStatements(sourcesSql)) await conn.query(stmt);
+      const names = (
+        await conn.query(`SELECT table_name FROM information_schema.tables WHERE table_schema = 'dbt_scratch'`)
+      )
+        .toArray()
+        .map((r) => String((r as { table_name: string }).table_name));
+      const out: SourceTable[] = [];
+      for (const name of names) {
+        const described = (await conn.query(`DESCRIBE ${name}`)).toArray() as {
+          column_name: string;
+          column_type: string;
+        }[];
+        const typeByName = new Map(described.map((d) => [d.column_name, d.column_type]));
+        const sample = tableToResultSet(await conn.query(`SELECT * FROM ${name} LIMIT 4`));
+        out.push({
+          name,
+          columns: sample.columns.map((c) => ({ name: c.name, type: typeByName.get(c.name) ?? '' })),
+          rows: sample.rows,
+        });
+      }
+      return out;
     } finally {
       await conn.query(`USE main`);
-      await conn.query(`DROP SCHEMA IF EXISTS dbt_scratch CASCADE`);
+    }
+  });
+}
+
+/** Render a result set as a fixed-width text table, for the terminal. */
+function formatResultTable(rs: ResultSet): string[] {
+  if (rs.columns.length === 0) return ['(no columns)'];
+  const headers = rs.columns.map((c) => c.name);
+  const cell = (c: Cell) => (c === null ? 'NULL' : String(c));
+  const widths = headers.map((h, i) => Math.max(h.length, ...rs.rows.map((r) => cell(r[i] ?? null).length)));
+  const fmt = (vals: string[]) => vals.map((v, i) => v.padEnd(widths[i]!)).join('  ');
+  const lines = [fmt(headers), fmt(widths.map((w) => '-'.repeat(w)))];
+  for (const r of rs.rows) lines.push(fmt(headers.map((_, i) => cell(r[i] ?? null))));
+  lines.push(`(${rs.rows.length} row${rs.rows.length === 1 ? '' : 's'})`);
+  return lines;
+}
+
+/** Run a Model-terminal command against the **persistent** `dbt_scratch` schema.
+ *  `dbt compile` (and unknown `dbt` subcommands) render without touching the DB;
+ *  `dbt run`/`build` materialize the user's models *without* resetting scratch
+ *  (so incremental models persist between runs). Anything not starting with
+ *  `dbt` is treated as a SQL query against scratch and its rows are tabulated —
+ *  this is how users inspect a materialized model (`select * from orders_mart`). */
+export async function dbtRunCommand(
+  command: string,
+  files: Record<string, string>,
+): Promise<CommandResult> {
+  const trimmed = command.trim();
+  const first = trimmed.split(/\s+/)[0];
+
+  // Non-dbt input → run as SQL against the persistent scratch and tabulate.
+  if (first !== 'dbt') {
+    if (!trimmed) return { lines: [], ok: true };
+    return serialize(async () => {
+      const conn = await getConn();
+      await conn.query(`USE dbt_scratch`);
+      try {
+        const rs = tableToResultSet(await conn.query(trimmed));
+        return { lines: formatResultTable(rs), ok: true };
+      } catch (e) {
+        const msg = (e instanceof Error ? e.message.split('\n')[0] : String(e)) ?? '';
+        return { lines: [`ERROR ${msg.replace(/^\w*Error:\s*/, '')}`], ok: false };
+      } finally {
+        await conn.query(`USE main`);
+      }
+    });
+  }
+
+  const models = filesToModels(files);
+  const sub = trimmed.split(/\s+/)[1];
+  // Only run/build touch the warehouse; compile + unknown commands stay DB-free.
+  if (sub !== 'run' && sub !== 'build') {
+    const noop: DbtRunner = { run: async () => {}, tableExists: async () => false };
+    return runDbtCommand(noop, async () => 0, command, models);
+  }
+  return serialize(async () => {
+    const conn = await getConn();
+    await conn.query(`USE dbt_scratch`);
+    try {
+      const runner = schemaRunner(conn, 'dbt_scratch');
+      const rowCount = async (name: string) =>
+        Number((await conn.query(`SELECT COUNT(*) c FROM ${name}`)).toArray()[0]!.c);
+      return await runDbtCommand(runner, rowCount, command, models);
+    } finally {
+      await conn.query(`USE main`);
     }
   });
 }
