@@ -2005,7 +2005,7 @@ pre.canonical {
   min-width: 0;
 }
 
-.dbt-tabbar {
+.dbt-editor-head {
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -2014,22 +2014,13 @@ pre.canonical {
   background: var(--surface-2);
 }
 
-.file-tab-btn {
-  border: none;
-  background: transparent;
-  font: inherit;
-  font-family: ui-monospace, monospace;
+.dbt-breadcrumb {
+  font-family: var(--font-mono);
   font-size: 0.8rem;
-  color: inherit;
-  cursor: pointer;
-}
-
-.file-tab-x {
-  border: none;
-  background: transparent;
   color: var(--text-muted);
-  cursor: pointer;
-  padding: 0 0.2rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .dbt-submit {

@@ -156,7 +156,6 @@ export function DbtWorkspace({ challenge, dark }: { challenge: DbtChallenge; dar
   const [files, setFiles] = useState<Record<string, string>>(() => saved.files ?? { ...challenge.starter });
   const [folders, setFolders] = useState<string[]>(() => saved.folders ?? []);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
-  const [openTabs, setOpenTabs] = useState<string[]>([INSTRUCTIONS, ...Object.keys(files)]);
   const [active, setActive] = useState<string>(INSTRUCTIONS);
   const [newName, setNewName] = useState<string | null>(null);
   const [newFolder, setNewFolder] = useState<string | null>(null);
@@ -253,17 +252,7 @@ export function DbtWorkspace({ challenge, dark }: { challenge: DbtChallenge; dar
     }
   };
 
-  const openTab = (path: string) => {
-    setOpenTabs((t) => (t.includes(path) ? t : [...t, path]));
-    setActive(path);
-  };
-  const closeTab = (path: string) => {
-    setOpenTabs((tabs) => {
-      const next = tabs.filter((t) => t !== path);
-      if (active === path) setActive(next[next.length - 1] ?? INSTRUCTIONS);
-      return next;
-    });
-  };
+  const openTab = (path: string) => setActive(path);
   const toggleDir = (path: string) =>
     setCollapsed((c) => {
       const next = new Set(c);
@@ -290,7 +279,7 @@ export function DbtWorkspace({ challenge, dark }: { challenge: DbtChallenge; dar
       delete rest[path];
       return rest;
     });
-    closeTab(path);
+    if (active === path) setActive(INSTRUCTIONS);
   };
 
   async function run() {
@@ -357,8 +346,6 @@ export function DbtWorkspace({ challenge, dark }: { challenge: DbtChallenge; dar
       setSubmitting(false);
     }
   }
-
-  const tabLabel = (t: string) => (t === INSTRUCTIONS ? 'Instructions' : (t.split('/').pop() ?? t));
 
   function histRecall(
     e: KeyboardEvent<HTMLInputElement>,
@@ -485,21 +472,10 @@ export function DbtWorkspace({ challenge, dark }: { challenge: DbtChallenge; dar
         />
 
         <div className="dbt-main">
-          <div className="dbt-tabbar">
-            <div className="file-tabs">
-              {openTabs.map((t) => (
-                <span key={t} className={`file-tab ${active === t ? 'active' : ''}`}>
-                  <button className="file-tab-btn" onClick={() => setActive(t)} data-testid={`tab-${testId(t)}`}>
-                    {tabLabel(t)}
-                  </button>
-                  {t !== INSTRUCTIONS && (
-                    <button className="file-tab-x" onClick={() => closeTab(t)}>
-                      ×
-                    </button>
-                  )}
-                </span>
-              ))}
-            </div>
+          <div className="dbt-editor-head">
+            <span className="dbt-breadcrumb" data-testid="dbt-active-file">
+              {active === INSTRUCTIONS ? 'Instructions' : active}
+            </span>
             <button className="primary dbt-submit" onClick={submit} disabled={submitting} data-testid="dbt-submit">
               {submitting ? 'Grading…' : 'Submit'}
             </button>
