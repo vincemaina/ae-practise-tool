@@ -2,8 +2,8 @@
   "$schema": "../question.schema.json",
   "id": "q-like-named-customers",
   "slug": "like-named-customers",
-  "title": "Named customers (LIKE)",
-  "prompt": "Most customers have a generic name like \"Customer 12\". Using LIKE, return only the \"named\" customers — those whose name does NOT start with \"Customer \". Single column name, alphabetical.",
+  "title": "Names containing a pattern (LIKE)",
+  "prompt": "Using LIKE, return the customers whose name contains 'son' (e.g. Johnson, Thompson, Wilson). Single column name, alphabetical.",
   "difficulty": "easy",
   "packs": [
     "Core SQL Foundations"
@@ -17,7 +17,7 @@
     "generic": [
       "SELECT name",
       "FROM customers",
-      "WHERE name NOT LIKE 'Customer %'",
+      "WHERE name LIKE '%son%'",
       "ORDER BY name"
     ]
   },
@@ -31,6 +31,6 @@
   },
   "hints": [
     "LIKE matches patterns; % is any run of characters.",
-    "Exclude the generic names with WHERE name NOT LIKE 'Customer %'."
+    "A substring match anywhere in the name is WHERE name LIKE '%son%'."
   ]
 }
