@@ -79,17 +79,21 @@ function FileTree({
   depth,
   active,
   collapsed,
+  confirmDelete,
   onToggleDir,
   onOpen,
   onDelete,
+  onCancelDelete,
 }: {
   node: DirNode;
   depth: number;
   active: string;
   collapsed: Set<string>;
+  confirmDelete: string | null;
   onToggleDir: (path: string) => void;
   onOpen: (path: string) => void;
   onDelete: (path: string) => void;
+  onCancelDelete: () => void;
 }) {
   const pad = (d: number) => ({ paddingLeft: `${d * 0.85 + 0.5}rem` });
   return (
@@ -111,28 +115,39 @@ function FileTree({
               depth={depth + 1}
               active={active}
               collapsed={collapsed}
+              confirmDelete={confirmDelete}
               onToggleDir={onToggleDir}
               onOpen={onOpen}
               onDelete={onDelete}
+              onCancelDelete={onCancelDelete}
             />
           )}
         </li>
       ))}
-      {node.files.map((f) => (
-        <li key={f.path} className="dbt-file-row">
-          <button
-            className={`dbt-file ${active === f.path ? 'active' : ''}`}
-            style={pad(depth)}
-            onClick={() => onOpen(f.path)}
-            data-testid={`tree-${testId(f.path)}`}
-          >
-            {f.name}
-          </button>
-          <button className="dbt-file-del" title="Delete" onClick={() => onDelete(f.path)}>
-            ×
-          </button>
-        </li>
-      ))}
+      {node.files.map((f) => {
+        const confirming = confirmDelete === f.path;
+        return (
+          <li key={f.path} className="dbt-file-row">
+            <button
+              className={`dbt-file ${active === f.path ? 'active' : ''}`}
+              style={pad(depth)}
+              onClick={() => onOpen(f.path)}
+              data-testid={`tree-${testId(f.path)}`}
+            >
+              {f.name}
+            </button>
+            <button
+              className={`dbt-file-del ${confirming ? 'confirm' : ''}`}
+              title={confirming ? 'Click again to delete' : 'Delete'}
+              aria-label={'Delete ' + f.path}
+              onClick={() => onDelete(f.path)}
+              onBlur={() => confirming && onCancelDelete()}
+            >
+              {confirming ? '✓' : '×'}
+            </button>
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -159,6 +174,7 @@ export function DbtWorkspace({ challenge, dark }: { challenge: DbtChallenge; dar
   const [active, setActive] = useState<string>(INSTRUCTIONS);
   const [newName, setNewName] = useState<string | null>(null);
   const [newFolder, setNewFolder] = useState<string | null>(null);
+  const [confirmDeletePath, setConfirmDeletePath] = useState<string | null>(null);
 
   // Bottom drawer: a Terminal (dbt commands) and a SQL console (query warehouse).
   const [bottomTab, setBottomTab] = useState<'terminal' | 'sql'>('terminal');
@@ -188,6 +204,7 @@ export function DbtWorkspace({ challenge, dark }: { challenge: DbtChallenge; dar
   const ideRef = useRef<HTMLDivElement>(null);
 
   const [sources, setSources] = useState<SourceTable[] | null>(null);
+  const [sourcesError, setSourcesError] = useState<string | null>(null);
   const [objects, setObjects] = useState<WarehouseObject[]>([]);
   const [verdict, setVerdict] = useState<DbtGradeResult | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -205,21 +222,30 @@ export function DbtWorkspace({ challenge, dark }: { challenge: DbtChallenge; dar
     }
   }, [files, folders, history, sqlHistory, term, sidebarWidth, storageKey]);
 
+  // Tracks the active drag's teardown so it can also run on unmount mid-drag
+  // (otherwise the listeners leak and body cursor sticks at col-resize).
+  const resizeCleanupRef = useRef<(() => void) | null>(null);
+
   function startResize(e: ReactMouseEvent) {
     e.preventDefault();
     const onMove = (ev: globalThis.MouseEvent) => {
       const left = ideRef.current?.getBoundingClientRect().left ?? 0;
       setSidebarWidth(Math.max(150, Math.min(460, ev.clientX - left)));
     };
-    const onUp = () => {
+    const cleanup = () => {
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
       document.body.style.cursor = '';
+      resizeCleanupRef.current = null;
     };
+    const onUp = () => cleanup();
     document.body.style.cursor = 'col-resize';
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
+    resizeCleanupRef.current = cleanup;
   }
+
+  useEffect(() => () => resizeCleanupRef.current?.(), []);
 
   // Seed the terminal's persistent scratch schema once per challenge, grab the
   // source previews (Instructions), and list what's in the warehouse. The schema
@@ -227,6 +253,7 @@ export function DbtWorkspace({ challenge, dark }: { challenge: DbtChallenge; dar
   // incrementally (feedback #13).
   useEffect(() => {
     let cancelled = false;
+    setSourcesError(null);
     dbtInit(challenge.sources)
       .then((s) => {
         if (cancelled) return;
@@ -234,7 +261,11 @@ export function DbtWorkspace({ challenge, dark }: { challenge: DbtChallenge; dar
         return listWarehouseObjects(s.map((x) => x.name));
       })
       .then((o) => o && !cancelled && setObjects(o))
-      .catch(() => !cancelled && setSources([]));
+      .catch((e) => {
+        if (cancelled) return;
+        setSources([]);
+        setSourcesError(`Failed to load the SQL engine: ${String(e)}`);
+      });
     return () => {
       cancelled = true;
     };
@@ -280,6 +311,17 @@ export function DbtWorkspace({ challenge, dark }: { challenge: DbtChallenge; dar
       return rest;
     });
     if (active === path) setActive(INSTRUCTIONS);
+  };
+  // First click arms the confirm state (button turns into a ✓); a second
+  // click on the same file actually deletes it (feedback 0008 — no
+  // unconfirmed one-click delete).
+  const requestDeleteFile = (path: string) => {
+    if (confirmDeletePath === path) {
+      deleteFile(path);
+      setConfirmDeletePath(null);
+    } else {
+      setConfirmDeletePath(path);
+    }
   };
 
   async function run() {
@@ -410,9 +452,11 @@ export function DbtWorkspace({ challenge, dark }: { challenge: DbtChallenge; dar
               depth={0}
               active={active}
               collapsed={collapsed}
+              confirmDelete={confirmDeletePath}
               onToggleDir={toggleDir}
               onOpen={openTab}
-              onDelete={deleteFile}
+              onDelete={requestDeleteFile}
+              onCancelDelete={() => setConfirmDeletePath(null)}
             />
 
             {newName !== null && (
@@ -422,8 +466,11 @@ export function DbtWorkspace({ challenge, dark }: { challenge: DbtChallenge; dar
                 placeholder="models/new_model.sql"
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && addFile(newName)}
-                onBlur={() => (newName ? addFile(newName) : setNewName(null))}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') addFile(newName);
+                  else if (e.key === 'Escape') setNewName(null);
+                }}
+                onBlur={() => setNewName(null)}
                 data-testid="dbt-newfile-input"
               />
             )}
@@ -434,8 +481,11 @@ export function DbtWorkspace({ challenge, dark }: { challenge: DbtChallenge; dar
                 placeholder="macros"
                 value={newFolder}
                 onChange={(e) => setNewFolder(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && addFolder(newFolder)}
-                onBlur={() => (newFolder ? addFolder(newFolder) : setNewFolder(null))}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') addFolder(newFolder);
+                  else if (e.key === 'Escape') setNewFolder(null);
+                }}
+                onBlur={() => setNewFolder(null)}
                 data-testid="dbt-newfolder-input"
               />
             )}
@@ -480,6 +530,12 @@ export function DbtWorkspace({ challenge, dark }: { challenge: DbtChallenge; dar
               {submitting ? 'Grading…' : 'Submit'}
             </button>
           </div>
+
+          {sourcesError && (
+            <div className="dbt-verdict-bar bad" data-testid="error">
+              {sourcesError}
+            </div>
+          )}
 
           {verdict && (
             <div className={`dbt-verdict-bar ${verdict.correct ? 'ok' : 'bad'}`} data-testid="dbt-verdict">

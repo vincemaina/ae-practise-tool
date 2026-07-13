@@ -1987,6 +1987,13 @@ pre.canonical {
   opacity: 1;
 }
 
+/* Armed confirm state (second click deletes) — stay visible even without
+   hover so the affordance doesn't disappear before the confirming click. */
+.dbt-file-del.confirm {
+  opacity: 1;
+  color: var(--danger);
+}
+
 .dbt-newfile-input {
   width: 100%;
   font-family: ui-monospace, monospace;

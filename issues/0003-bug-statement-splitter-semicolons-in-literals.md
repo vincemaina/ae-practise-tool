@@ -60,3 +60,17 @@ rather than live user input), but should adopt `splitStatements` from
 `splitSql.ts` in a follow-up pass — the new module's `splitStatements` is a
 drop-in replacement for their existing `sql.split(';').map(s => s.trim()).filter(Boolean)`
 pattern.
+
+**Follow-up migration done (issue 0005):** `app/src/engine/duckdb.ts`'s `exec`
+helper and the dbt source-seeding loop in `dbtInit` (formerly routed through a
+`dbtStatements` helper, now removed as redundant) both call `splitStatements`
+from `editor/splitSql.ts` directly; same for `app/src/dbt/challenge.ts`'s
+`buildChallenge` (its local `statements` helper was removed in favour of
+calling `splitStatements` directly). Behaviour is unchanged — same trimmed,
+non-empty statement list — just literal/comment-aware now. Left untouched (and
+still a plain `sql.split(';')`): `duckdb.ts`'s `mayMutate`, which is unrelated
+newer code (the mutation-reseed fix, issue 0001) not mentioned in this issue's
+original scope — false positives there are explicitly documented as harmless
+(an extra re-seed), so it wasn't folded into this pass. `pnpm typecheck`,
+`pnpm lint`, `pnpm test`, `pnpm verify:content`, and `pnpm verify:dbt` all
+green after the migration.
