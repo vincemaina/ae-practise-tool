@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import type { Deck, Flashcard, LearnStore } from '../learn';
 import { dueCards } from '../learn';
 
@@ -7,6 +7,10 @@ import { dueCards } from '../learn';
  * a deck, shows one card at a time (front → flip → rate), and reschedules via the
  * store. "Again" re-queues the card for later this session; "Got it" retires it.
  * Each review calls `onReview` so the app can bump the shared daily streak.
+ *
+ * The parent must render this with `key={deck.id}` (see App.tsx) so switching
+ * decks remounts the component instead of reusing this stale local queue state
+ * (issue 0009).
  */
 export function LearnView({
   deck,
@@ -17,14 +21,12 @@ export function LearnView({
   store: LearnStore;
   onReview: () => void;
 }) {
-  // Snapshot the due queue once on mount; reviews mutate the store, but we drive
-  // the session from this local queue so a re-scheduled card doesn't vanish mid-flip.
-  const initialQueue = useMemo(
-    () => dueCards(deck.cards, store.states(), todayKey()),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [deck.id],
+  // Snapshot the due queue once on mount (lazy initializer, so it never re-runs
+  // for this mounted instance); reviews mutate the store, but we drive the
+  // session from this local queue so a re-scheduled card doesn't vanish mid-flip.
+  const [queue, setQueue] = useState<Flashcard[]>(() =>
+    dueCards(deck.cards, store.states(), todayKey()),
   );
-  const [queue, setQueue] = useState<Flashcard[]>(initialQueue);
   const [revealed, setRevealed] = useState(false);
 
   const current = queue[0];

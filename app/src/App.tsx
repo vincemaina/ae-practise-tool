@@ -228,7 +228,7 @@ export default function App() {
           <DbtChallengeList challenges={challenges} onOpen={(slug) => navigate(`/model/${slug}`)} />
         )
       ) : isLearn ? (
-        <LearnView deck={dbtDeck} store={learn} onReview={onCardReview} />
+        <LearnView key={dbtDeck.id} deck={dbtDeck} store={learn} onReview={onCardReview} />
       ) : isSessionSetup ? (
         <SessionSetup
           questions={dialectQuestions}

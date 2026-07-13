@@ -9,6 +9,7 @@ The client-side React + Vite + TypeScript PWA is built and live in `app/` — a 
 ### Key docs (read these to get oriented)
 - **`app/CLAUDE.md`** — the app's architecture, commands, and working conventions (start here for code work).
 - `ROADMAP.md` — phased plan + live status + idea backlog. The map for what's next.
+- **`issues/`** — the in-repo issue tracker (one markdown file per issue, `status:` frontmatter is authoritative). **Check for `status: open` P1s when looking for work**; follow the workflow in `issues/README.md`.
 - `decisions/` — Architecture Decision Records, all **accepted** (0001 engine · 0002 dialect strategy · 0003 expected-output · 0004 grading · 0005 tooling · 0006 Snowflake transpilation).
 - `COVERAGE.md` — live SQL-feature coverage (`pnpm coverage`); `notes/research/` — research incl. `snowflake-vs-duckdb.md`, `feature-ideas-2026.md`.
 - `docs/dev-container.md` — run the agent's container with an isolated `node_modules` to avoid host↔container native-binary clobbering.

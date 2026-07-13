@@ -1,3 +1,5 @@
+import { nextTopLevelSemicolon, prevTopLevelSemicolon, splitStatements } from './splitSql';
+
 export interface StatementRange {
   from: number;
   to: number;
@@ -6,14 +8,15 @@ export interface StatementRange {
 
 /**
  * The SQL statement surrounding `pos`, for "run the query my cursor is in".
- * Splits on top-level `;` (naive — same contract as the seed splitter; ignores
- * semicolons inside strings/comments). Returns the trimmed range + text, or null
- * if the surrounding statement is empty.
+ * Splits on top-level `;` only — quote/comment-aware via `splitSql.ts`, so a
+ * `;` inside a string literal, quoted identifier, or comment doesn't split the
+ * statement (issue 0003). Returns the trimmed range + text, or null if the
+ * surrounding statement is empty.
  */
 export function statementAt(doc: string, pos: number): StatementRange | null {
-  const prevSemi = doc.lastIndexOf(';', pos - 1);
+  const prevSemi = prevTopLevelSemicolon(doc, pos);
   const rawStart = prevSemi + 1; // 0 if none
-  const nextSemi = doc.indexOf(';', pos);
+  const nextSemi = nextTopLevelSemicolon(doc, pos);
   const rawEnd = nextSemi === -1 ? doc.length : nextSemi;
 
   const slice = doc.slice(rawStart, rawEnd);
@@ -25,9 +28,9 @@ export function statementAt(doc: string, pos: number): StatementRange | null {
   return { from: rawStart + lead, to: rawEnd - trail, text };
 }
 
-/** Number of non-empty `;`-separated statements in the document. */
+/** Number of non-empty top-level statements in the document. */
 export function statementCount(doc: string): number {
-  return doc.split(';').filter((s) => s.trim()).length;
+  return splitStatements(doc).length;
 }
 
 /**

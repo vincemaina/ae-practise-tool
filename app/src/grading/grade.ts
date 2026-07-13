@@ -29,6 +29,10 @@ interface Norm {
 
 function normalize(cell: Cell, caseSensitiveText: boolean): Norm {
   if (cell === null || cell === undefined) return { f: 'null', v: null };
+  // Precision note: DuckDB returns BIGINT/HUGEINT as `bigint`; converting to `number`
+  // loses exactness above 2^53 (Number.MAX_SAFE_INTEGER). Accepted trade-off — grading
+  // already compares numbers with a float epsilon (see cellsEqual), and exact
+  // arbitrary-precision integer equality isn't a current requirement.
   if (typeof cell === 'bigint') return { f: 'number', v: Number(cell) };
   if (typeof cell === 'number') return { f: 'number', v: cell };
   if (typeof cell === 'boolean') return { f: 'boolean', v: cell };
@@ -42,7 +46,15 @@ function cellsEqual(a: Norm, b: Norm, tolerance: number): boolean {
   if (a.f === 'number') {
     const x = a.v as number;
     const y = b.v as number;
+    // Short-circuit exact equality before the epsilon math: this covers ±Infinity
+    // (Infinity - Infinity is NaN, which would otherwise fail Math.abs(x - y) <= eps)
+    // and makes -Infinity correctly not equal to Infinity.
+    if (x === y) return true;
     if (Number.isNaN(x) || Number.isNaN(y)) return Number.isNaN(x) && Number.isNaN(y);
+    // One side is ±Infinity and they aren't equal (the x === y check above already
+    // caught Infinity === Infinity): reject rather than let Infinity - Infinity (NaN)
+    // or an Infinity-sized epsilon pass the tolerance check below.
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
     const eps = tolerance > 0 ? tolerance : 1e-9 * Math.max(1, Math.abs(x), Math.abs(y));
     return Math.abs(x - y) <= eps;
   }
@@ -131,7 +143,10 @@ export function grade(
 export interface GradeDiff {
   expectedColumns: string[];
   actualColumns: string[];
-  /** Column count (or required names) differ — row diff is skipped. */
+  /** True when column count differs, or (with requireColumnNames) names differ.
+   *  The row diff below is only skipped for a count mismatch; a names-only
+   *  mismatch still returns the computed missing/extra rows, which is useful
+   *  for the "why is this wrong" view alongside the column complaint. */
   columnMismatch: boolean;
   /** Rows in the expected output absent from the user's (original cell values). */
   missingRows: Cell[][];

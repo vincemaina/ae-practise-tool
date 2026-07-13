@@ -86,6 +86,33 @@ describe('grade', () => {
     expect(grade(exp, act).correct).toBe(true);
     expect(grade(exp, act, { requireColumnNames: true }).correct).toBe(false);
   });
+
+  it('treats Infinity as equal to itself', () => {
+    const exp = rs(['x'], [[Infinity]]);
+    const act = rs(['x'], [[Infinity]]);
+    expect(grade(exp, act).correct).toBe(true);
+  });
+
+  it('does not treat Infinity and -Infinity as equal', () => {
+    const exp = rs(['x'], [[Infinity]]);
+    const act = rs(['x'], [[-Infinity]]);
+    expect(grade(exp, act).correct).toBe(false);
+  });
+
+  it('still matches NaN to NaN', () => {
+    const exp = rs(['x'], [[NaN]]);
+    const act = rs(['x'], [[NaN]]);
+    expect(grade(exp, act).correct).toBe(true);
+    expect(grade(exp, rs(['x'], [[0]])).correct).toBe(false);
+  });
+
+  it('compares Date cells by their timestamp', () => {
+    const exp = rs(['d'], [[new Date('2026-01-01T00:00:00Z')]]);
+    const sameInstant = rs(['d'], [[new Date('2026-01-01T00:00:00Z')]]);
+    const different = rs(['d'], [[new Date('2026-01-02T00:00:00Z')]]);
+    expect(grade(exp, sameInstant).correct).toBe(true);
+    expect(grade(exp, different).correct).toBe(false);
+  });
 });
 
 describe('diffResults', () => {

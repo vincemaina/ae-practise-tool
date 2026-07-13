@@ -3,6 +3,7 @@ import type { ResultSet } from '../grading/types';
 import type { DialectFilter } from '../content/dialects';
 import { tableToResultSet } from './result-mapping';
 import { toDuckDB } from './transpile';
+import { splitStatements } from '../editor/splitSql';
 import { buildChallenge, filesToModels, type DbtChallenge } from '../dbt/challenge';
 import type { DbtRunner } from '../dbt/engine';
 import { runDbtCommand, type CommandResult } from '../dbt/commands';
@@ -45,6 +46,12 @@ async function getDb(): Promise<duckdb.AsyncDuckDB> {
       URL.revokeObjectURL(workerUrl);
       return db;
     })();
+    // A rejected boot (e.g. a flaky first fetch from jsDelivr) must not be
+    // memoized forever — clear it so the next caller gets a fresh attempt
+    // instead of the same dead promise for the rest of the session (issue 0002).
+    dbPromise.catch(() => {
+      dbPromise = null;
+    });
   }
   return dbPromise;
 }
@@ -52,13 +59,16 @@ async function getDb(): Promise<duckdb.AsyncDuckDB> {
 async function getConn(): Promise<duckdb.AsyncDuckDBConnection> {
   if (!connPromise) {
     connPromise = getDb().then((db) => db.connect());
+    connPromise.catch(() => {
+      connPromise = null;
+    });
   }
   return connPromise;
 }
 
 /** Run each `;`-separated statement in order (sufficient for our seed scripts). */
 async function exec(conn: duckdb.AsyncDuckDBConnection, sql: string): Promise<void> {
-  for (const stmt of sql.split(';').map((s) => s.trim()).filter(Boolean)) {
+  for (const stmt of splitStatements(sql)) {
     await conn.query(stmt);
   }
 }
@@ -84,6 +94,38 @@ export async function ensureDataset(
   });
 }
 
+// Statement keywords that never mutate the seeded tables — anything else is
+// conservatively treated as a possible mutation (issue 0001). False positives
+// (flagging a read as a mutation) just cost a harmless extra re-seed; false
+// negatives would let corruption through, so this errs toward flagging.
+const READ_ONLY_KEYWORDS = new Set([
+  'SELECT',
+  'WITH',
+  'EXPLAIN',
+  'SHOW',
+  'DESCRIBE',
+  'PRAGMA',
+  'SUMMARIZE',
+  'VALUES',
+]);
+
+/** Conservative check for whether `sql` (already DuckDB SQL) might mutate the
+ *  seeded tables — i.e. contains a `;`-separated statement whose first keyword
+ *  (after stripping comments) isn't a known read-only one. Used to invalidate
+ *  the dataset cache so a later `ensureDataset` re-seeds before grading. */
+function mayMutate(sql: string): boolean {
+  const statements = sql.split(';').map((s) => s.trim()).filter(Boolean);
+  return statements.some((stmt) => {
+    const stripped = stmt
+      .replace(/--[^\n]*/g, '')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .trim();
+    const match = /^([A-Za-z]+)/.exec(stripped);
+    if (!match) return false; // nothing left to run — harmless
+    return !READ_ONLY_KEYWORDS.has(match[1]!.toUpperCase());
+  });
+}
+
 /** Run a query. `dialect` (default 'all' = no translation) transpiles the user's
  *  SQL from their dialect to DuckDB first (ADR 0006). Transpile happens outside
  *  the connection queue since it doesn't touch the DB. */
@@ -91,16 +133,17 @@ export async function runQuery(sql: string, dialect: DialectFilter = 'all'): Pro
   const duckSql = await toDuckDB(sql, dialect);
   return serialize(async () => {
     const conn = await getConn();
+    // Invalidate *before* running: user SQL (UPDATE/DELETE/DROP/CREATE OR
+    // REPLACE/…) can corrupt the shared dataset, and `ensureDataset`'s cache key
+    // would otherwise never notice, so the corruption would persist across
+    // Run/Submit and even other questions on the same dataset (issue 0001).
+    // Marking it before execution also covers a query that throws partway
+    // through a multi-statement transpile.
+    if (mayMutate(duckSql)) loadedDataset = null;
     const table = await conn.query(duckSql);
     return tableToResultSet(table);
   });
 }
-
-const dbtStatements = (sql: string) =>
-  sql
-    .split(';')
-    .map((s) => s.trim())
-    .filter(Boolean);
 
 /** A `DbtRunner` bound to a specific schema (so builds land there, and
  *  `tableExists` — which drives the incremental path — checks that schema). */
@@ -161,7 +204,7 @@ export async function dbtInit(sourcesSql: string): Promise<SourceTable[]> {
     await conn.query(`CREATE SCHEMA dbt_scratch`);
     await conn.query(`USE dbt_scratch`);
     try {
-      for (const stmt of dbtStatements(sourcesSql)) await conn.query(stmt);
+      for (const stmt of splitStatements(sourcesSql)) await conn.query(stmt);
       const names = (
         await conn.query(`SELECT table_name FROM information_schema.tables WHERE table_schema = 'dbt_scratch'`)
       )

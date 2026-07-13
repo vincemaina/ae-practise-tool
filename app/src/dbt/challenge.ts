@@ -7,6 +7,7 @@
  */
 import type { GradeOptions } from '../grading/grade';
 import { build, type DbtRunner, type Materialization, type Model } from './engine';
+import { splitStatements } from '../editor/splitSql';
 
 /** A structural requirement on a submitted model, checked on top of output
  *  equivalence — so producing the right rows the wrong way (e.g. a table instead
@@ -52,14 +53,6 @@ export function filesToModels(files: Record<string, string>): Model[] {
     .map(([path, sql]) => ({ name: path.replace(/^.*\//, '').replace(/\.sql$/, ''), sql }));
 }
 
-/** Split multi-statement SQL into individual statements. */
-function statements(sql: string): string[] {
-  return sql
-    .split(';')
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
-
 /**
  * Seed sources and build a challenge's model files against `runner`. For an
  * incremental challenge, applies `increment` and builds a second time so the
@@ -70,11 +63,11 @@ export async function buildChallenge(
   challenge: Pick<DbtChallenge, 'sources' | 'increment'>,
   files: Record<string, string>,
 ): Promise<void> {
-  for (const stmt of statements(challenge.sources)) await runner.run(stmt);
+  for (const stmt of splitStatements(challenge.sources)) await runner.run(stmt);
   const models = filesToModels(files);
   await build(runner, models);
   if (challenge.increment) {
-    for (const stmt of statements(challenge.increment)) await runner.run(stmt);
+    for (const stmt of splitStatements(challenge.increment)) await runner.run(stmt);
     await build(runner, models); // incremental run
   }
 }

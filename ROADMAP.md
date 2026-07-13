@@ -2,6 +2,8 @@
 
 High-level plan for the analytics-engineering SQL practice tool. This is the map; detailed plans/decisions live in [`decisions/`](./decisions/) and research in [`notes/research/`](./notes/research/). Keep this updated as phases ship.
 
+**Actionable work items live in [`issues/`](./issues/)** (in-repo tracker, one file per issue — see `issues/README.md` for the pickup workflow). Filed 2026-07-13 from a full code/product review: 9 bugs (5 × P1), 5 refactors, tests/a11y passes, and the prioritised product features (explanations, arrays pack, optimise-SQL, dbt content, quick wins).
+
 Product context: see [`notes/chatgpt/brainstorm.md`](./notes/chatgpt/brainstorm.md) (intent) and [`CLAUDE.md`](./CLAUDE.md) (working agreement + practices).
 
 **Status legend:** ⬜ not started · 🔄 in progress · ✅ done

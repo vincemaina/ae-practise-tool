@@ -97,13 +97,20 @@ export function PracticeView({
   const [busy, setBusy] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
+  // Params for (re-)seeding this question's dataset — shared by the initial
+  // load and by `getExpected`'s pre-grading re-seed below.
+  function seedOpts() {
+    return {
+      messinessSql: question.messiness ? buildMessinessSql(question.messiness) : undefined,
+      variant: question.messiness ? JSON.stringify(question.messiness) : undefined,
+    };
+  }
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const messinessSql = question.messiness ? buildMessinessSql(question.messiness) : undefined;
-        const variant = question.messiness ? JSON.stringify(question.messiness) : undefined;
-        await ensureDataset(dataset.id, dataset.setupSql, { messinessSql, variant });
+        await ensureDataset(dataset.id, dataset.setupSql, seedOpts());
         if (!cancelled) setReady(true);
       } catch (e) {
         if (!cancelled) setError(`Failed to load the SQL engine: ${String(e)}`);
@@ -112,6 +119,7 @@ export function PracticeView({
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataset.id, dataset.setupSql, question.messiness]);
 
   useEffect(() => {
@@ -128,6 +136,15 @@ export function PracticeView({
   const queryToRun = (activeSql.trim() ? activeSql : sql).trim();
 
   async function getExpected(): Promise<ResultSet> {
+    // Re-seed first: user SQL (Run, or an earlier Submit) may have mutated the
+    // shared dataset (UPDATE/DELETE/DROP/…). `ensureDataset` only actually
+    // re-runs the setup SQL when the engine flagged a possible mutation (a
+    // harmless no-op otherwise), so this keeps both a fresh `expected` and the
+    // table the submitted query is about to run against in sync (issue 0001).
+    // A `expected` cached from before the mutation is still valid post-reseed —
+    // the canonical solution's output over a freshly-reseeded table is the same
+    // deterministic result — so it's safe to keep the cache.
+    await ensureDataset(dataset.id, dataset.setupSql, seedOpts());
     if (expected) return expected;
     const exp = await runQuery(canonicalSql);
     setExpected(exp);

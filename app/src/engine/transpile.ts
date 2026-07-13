@@ -43,6 +43,12 @@ function loadPolyglot(): Promise<Polyglot> {
       await poly.init();
       return poly;
     });
+    // Don't memoize a failed load (e.g. a one-off network blip fetching the
+    // wasm) — clear it so the next dialect-transpile attempt retries instead of
+    // reusing the same rejected promise for the rest of the session (issue 0002).
+    polyPromise.catch(() => {
+      polyPromise = null;
+    });
   }
   return polyPromise;
 }
@@ -119,6 +125,12 @@ function scanArgs(sql: string, openParen: number): { args: string[]; end: number
  * boundary respected) by passing its parsed args to `transform`. A null return
  * leaves that call untouched. Restarts after each rewrite so nested calls are
  * handled; SQL here is short so the re-scan is cheap.
+ *
+ * The scan tracks single-/double-quoted literals and `--`/`/* *\/` comments
+ * (same state machine as `editor/splitSql.ts`'s `topLevelSemicolons`, applied
+ * here to call-name matching instead of `;`) so a call name that merely
+ * appears inside a string literal or comment — e.g. `'call to_varchar(x)…'`
+ * — is never mistaken for a real call site (issue 0005).
  */
 function rewriteCall(
   sql: string,
@@ -126,7 +138,58 @@ function rewriteCall(
   transform: (args: string[]) => string | null,
 ): string {
   const lower = sql.toLowerCase();
+  let inSingle = false;
+  let inDouble = false;
+  let inLineComment = false;
+  let inBlockComment = false;
   for (let i = 0; i < sql.length; i++) {
+    const ch = sql[i]!;
+    const next = sql[i + 1];
+
+    if (inLineComment) {
+      if (ch === '\n') inLineComment = false;
+      continue;
+    }
+    if (inBlockComment) {
+      if (ch === '*' && next === '/') {
+        inBlockComment = false;
+        i++;
+      }
+      continue;
+    }
+    if (inSingle) {
+      if (ch === "'") {
+        if (next === "'") i++; // '' escape — stay in the string
+        else inSingle = false;
+      }
+      continue;
+    }
+    if (inDouble) {
+      if (ch === '"') {
+        if (next === '"') i++; // "" escape — stay in the identifier
+        else inDouble = false;
+      }
+      continue;
+    }
+    if (ch === "'") {
+      inSingle = true;
+      continue;
+    }
+    if (ch === '"') {
+      inDouble = true;
+      continue;
+    }
+    if (ch === '-' && next === '-') {
+      inLineComment = true;
+      i++;
+      continue;
+    }
+    if (ch === '/' && next === '*') {
+      inBlockComment = true;
+      i++;
+      continue;
+    }
+
     for (const name of names) {
       if (!lower.startsWith(name, i)) continue;
       const before = i > 0 ? sql[i - 1]! : '';

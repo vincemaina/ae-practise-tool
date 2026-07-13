@@ -2,10 +2,12 @@
  * mini-dbt — a tiny dbt-compatible build engine that runs against DuckDB (in the
  * browser via DuckDB-Wasm). Validated by `scripts/dbt-spike.ts`; see the ROADMAP
  * "dbt practice engine" entry. Supports the fundamentals: `{{ ref() }}`,
- * `{{ source() }}`, `{{ config() }}`, `{{ this }}`, `{% if is_incremental() %}`;
- * DAG build order; view / table / incremental / ephemeral materializations;
- * incremental upsert on `unique_key` (delete+insert) or append. Deferred (later):
- * real Jinja (macros/loops via nunjucks), snapshots, tests, packages.
+ * `{{ source() }}`, `{{ config() }}`, `{{ this }}`, `{% if is_incremental() %}`
+ * with an optional `{% else %}` (single or double-quoted string args, either
+ * way); DAG build order; view / table / incremental / ephemeral
+ * materializations; incremental upsert on `unique_key` (delete+insert) or
+ * append. Deferred (later): real Jinja (macros/loops via nunjucks), snapshots,
+ * tests, packages.
  *
  * Pure compile/render/toposort are unit-tested directly; `build()` emits SQL
  * through a `DbtRunner` so it's testable without a database too.
@@ -37,11 +39,14 @@ export class DbtError extends Error {}
 
 const RX = {
   config: /\{\{-?\s*config\(([\s\S]*?)\)\s*-?\}\}/,
-  ref: /\{\{-?\s*ref\(\s*'([^']+)'\s*\)\s*-?\}\}/g,
-  source: /\{\{-?\s*source\(\s*'([^']+)'\s*,\s*'([^']+)'\s*\)\s*-?\}\}/g,
+  // Quotes: dbt authors use single or double interchangeably; accept either,
+  // requiring the closing quote to match the opener (backreference \1).
+  ref: /\{\{-?\s*ref\(\s*(['"])([^'"]+)\1\s*\)\s*-?\}\}/g,
+  source: /\{\{-?\s*source\(\s*(['"])([^'"]+)\1\s*,\s*(['"])([^'"]+)\3\s*\)\s*-?\}\}/g,
   self: /\{\{-?\s*this\s*-?\}\}/g,
   // The `()` on is_incremental is optional so a common slip still resolves.
-  incr: /\{%-?\s*if\s+is_incremental\s*(?:\(\s*\))?\s*-?%\}([\s\S]*?)\{%-?\s*endif\s*-?%\}/g,
+  // The `{% else %}` branch is optional; when present, group 2 is its body.
+  incr: /\{%-?\s*if\s+is_incremental\s*(?:\(\s*\))?\s*-?%\}([\s\S]*?)(?:\{%-?\s*else\s*-?%\}([\s\S]*?))?\{%-?\s*endif\s*-?%\}/g,
   // Any Jinja delimiter left after rendering = an unsupported/malformed tag.
   leftover: /\{\{[\s\S]*?\}\}|\{%[\s\S]*?%\}/,
 };
@@ -49,14 +54,14 @@ const RX = {
 /** Parse a model's config + ref/source dependencies. */
 export function compileModel(model: Model): CompiledModel {
   const cfg = RX.config.exec(model.sql)?.[1] ?? '';
-  const materialized = (/materialized\s*=\s*'([^']+)'/.exec(cfg)?.[1] ?? 'view') as Materialization;
+  const materialized = (/materialized\s*=\s*(['"])([^'"]+)\1/.exec(cfg)?.[2] ?? 'view') as Materialization;
   if (!['view', 'table', 'incremental', 'ephemeral'].includes(materialized)) {
     throw new DbtError(`Model '${model.name}': unknown materialization '${materialized}'`);
   }
-  const uniqueKey = /unique_key\s*=\s*'([^']+)'/.exec(cfg)?.[1];
+  const uniqueKey = /unique_key\s*=\s*(['"])([^'"]+)\1/.exec(cfg)?.[2];
   const body = model.sql.replace(RX.config, '').trim();
-  const refs = [...body.matchAll(RX.ref)].map((m) => m[1]!);
-  const sources = [...body.matchAll(RX.source)].map((m) => [m[1]!, m[2]!] as [string, string]);
+  const refs = [...body.matchAll(RX.ref)].map((m) => m[2]!);
+  const sources = [...body.matchAll(RX.source)].map((m) => [m[2]!, m[4]!] as [string, string]);
   return { name: model.name, materialized, uniqueKey, refs, sources, body };
 }
 
@@ -72,9 +77,12 @@ export function renderModel(
   },
 ): string {
   const rendered = c.body
-    .replace(RX.incr, (_all, inner: string) => (opts.isIncremental ? inner : ''))
-    .replace(RX.ref, (_all, name: string) => opts.refRelation(name))
-    .replace(RX.source, (_all, s: string, t: string) => opts.sourceRelation(s, t))
+    // group 1 = if-branch, group 2 = else-branch (undefined when there's no `{% else %}`).
+    .replace(RX.incr, (_all, ifBranch: string, elseBranch: string | undefined) =>
+      opts.isIncremental ? ifBranch : (elseBranch ?? ''),
+    )
+    .replace(RX.ref, (_all, _quote: string, name: string) => opts.refRelation(name))
+    .replace(RX.source, (_all, _q1: string, s: string, _q2: string, t: string) => opts.sourceRelation(s, t))
     .replace(RX.self, () => c.name)
     .trim();
   // Fail loudly on unresolved Jinja rather than leaking `{{ }}`/`{% %}` into the
