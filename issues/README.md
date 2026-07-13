@@ -19,9 +19,11 @@ status: open | in-progress | done
 
 Body sections: **Problem** (with `file:line` refs), **Failure scenario** (bugs), **Fix sketch**, **Acceptance criteria**. The frontmatter `status` is authoritative — there is no separate index to keep in sync.
 
+Completed issues live in `closed/` (same format, `status: done`, with a `## Resolution` section) — kept, not deleted, because resolutions record decisions future changes will want ("why is it like this"). The top-level directory only ever contains open/in-progress work.
+
 ## Workflow (for an agent picking up work)
 
 1. `grep -l 'status: open' issues/*.md` and pick by priority (P1 first). Read the whole issue.
-2. Set `status: in-progress` while working; `status: done` when finished, appending a `## Resolution` section (what changed, files touched).
+2. Set `status: in-progress` while working. When finished: set `status: done`, append a `## Resolution` section (what changed, files touched), and **move the file to `issues/closed/`**.
 3. Definition of done per issue's acceptance criteria, plus the repo baseline: `pnpm typecheck && pnpm lint && pnpm test && pnpm verify:content && pnpm build` from `app/` (and `pnpm exec playwright test --project=chromium` for UI changes). Every bug fix lands with a regression test.
 4. **Do not commit** — repo rule (see root `CLAUDE.md`): the user reviews and commits all changes themselves.
